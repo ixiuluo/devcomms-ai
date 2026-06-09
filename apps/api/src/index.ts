@@ -1,8 +1,12 @@
 import express from 'express';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { APP_NAME, APP_VERSION, ApiSuccess } from '@dra/shared';
 import apiRoutes from './routes/index.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Extend Express Request to hold raw body for webhook verification
 declare global {
@@ -61,6 +65,35 @@ app.use((req, _res, next) => {
 app.use(helmet());
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(express.json());
+
+// ── CORS (public API + widget) ────────────────────────────────
+
+app.use('/api/public', (_req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  if (_req.method === 'OPTIONS') {
+    res.sendStatus(204);
+    return;
+  }
+  next();
+});
+
+// ── Static files (widget) ─────────────────────────────────────
+
+const publicDir = path.resolve(__dirname, '..', 'public');
+app.use(express.static(publicDir, {
+  maxAge: process.env.NODE_ENV === 'production' ? '1h' : 0,
+  setHeaders(res, filePath) {
+    if (filePath.endsWith('.js')) {
+      res.header('Access-Control-Allow-Origin', '*');
+      res.header('Content-Type', 'application/javascript; charset=utf-8');
+      if (process.env.NODE_ENV === 'production') {
+        res.header('Cache-Control', 'public, max-age=3600');
+      }
+    }
+  },
+}));
 
 // ── Routes ──────────────────────────────────────────────────
 
