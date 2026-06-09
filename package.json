@@ -1,0 +1,32 @@
+{
+  "name": "dra",
+  "version": "0.1.0",
+  "private": true,
+  "description": "DRA monorepo",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "echo 'Run: npm run dev -w apps/api'",
+    "build": "npm run build --workspaces --if-present",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc --build",
+    "test": "npm run test --workspaces --if-present",
+    "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules dist apps/*/dist packages/*/dist .next apps/*/.next"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.15.0",
+    "@types/node": "^22.10.0",
+    "eslint": "^9.15.0",
+    "prettier": "^3.4.0",
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.16.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
