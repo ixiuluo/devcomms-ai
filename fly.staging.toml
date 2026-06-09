@@ -11,6 +11,11 @@ primary_region = "ams"
 [env]
   NODE_ENV = "staging"
   PORT = "3000"
+  DATABASE_URL = "file:/data/staging.db"
+
+[mounts]
+  source = "data"
+  destination = "/data"
 
 [http_service]
   internal_port = 3000

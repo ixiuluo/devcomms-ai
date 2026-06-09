@@ -14,6 +14,11 @@ primary_region = "ams"
 [env]
   NODE_ENV = "production"
   PORT = "3000"
+  DATABASE_URL = "file:/data/prod.db"
+
+[mounts]
+  source = "data"
+  destination = "/data"
 
 [http_service]
   internal_port = 3000

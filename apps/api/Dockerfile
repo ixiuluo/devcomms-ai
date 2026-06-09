@@ -49,5 +49,5 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
     CMD node -e "fetch('http://localhost:3000/health').then(r => {if(!r.ok) process.exit(1)})"
 
-# Migrate then start
-CMD ["sh", "-c", "cd apps/api && npx prisma migrate deploy && node dist/index.js"]
+# Ensure data dir exists (for volume mounts), migrate, then start
+CMD ["sh", "-c", "mkdir -p /data && cd apps/api && npx prisma migrate deploy && node dist/index.js"]

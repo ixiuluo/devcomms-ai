@@ -4,34 +4,18 @@ import { PrismaLibSql } from "@prisma/adapter-libsql";
 /**
  * Singleton Prisma client instance.
  *
- * Adapter selection (based on DATABASE_URL scheme):
- * - file:...          → @prisma/adapter-libsql (SQLite, zero-dependency)
- * - postgresql://...  → Prisma's built-in PostgreSQL adapter
+ * Uses SQLite via @prisma/adapter-libsql — zero external dependencies.
+ * For production on Fly.io, mount a persistent volume at /data and set:
+ *   DATABASE_URL=file:/data/prod.db
  *
- * For Fly.io production:
- * - MVP: mount a persistent volume, use file:/data/prod.db
- * - Scale: provision Fly Postgres, set DATABASE_URL=postgresql://...
+ * PostgreSQL migration (post-MVP): switch schema provider, regenerate
+ * client, and update this file to use Prisma's built-in PG adapter.
  */
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
-
-function isPostgresUrl(url: string): boolean {
-  return url.startsWith("postgresql://") || url.startsWith("postgres://");
-}
 
 function createPrismaClient(): PrismaClient {
   const dbUrl = process.env.DATABASE_URL ?? "file:./prisma/dev.db";
 
-  if (isPostgresUrl(dbUrl)) {
-    // PostgreSQL — Prisma reads DATABASE_URL from env automatically
-    return new PrismaClient({
-      log:
-        process.env.NODE_ENV === "development"
-          ? ["warn", "error"]
-          : ["error"],
-    });
-  }
-
-  // SQLite via libsql adapter
   const adapter = new PrismaLibSql({ url: dbUrl });
 
   return new PrismaClient({
