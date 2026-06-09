@@ -7,14 +7,12 @@ import { APP_NAME, APP_VERSION, ApiSuccess } from '@dra/shared';
 let setupExpressErrorHandler: ((app: express.Express) => void) | null = null;
 
 async function initSentry(): Promise<void> {
-  const dsn = process.env.SENTRY_DSN;
-  if (!dsn) return;
+  if (!process.env.SENTRY_DSN) return;
 
   try {
     const Sentry = await import('@sentry/node');
-    // Sentry v8.55+ API: init with NodeOptions, expressErrorHandler for error capture
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
     Sentry.init({
-      dsn,
       environment: process.env.NODE_ENV ?? 'development',
       release: `${APP_NAME}@${APP_VERSION}`,
       integrations: [Sentry.expressIntegration()],
