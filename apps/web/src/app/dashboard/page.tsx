@@ -23,6 +23,23 @@ interface EntrySummary {
   commit: { sha: string; message: string } | null;
 }
 
+interface AnalyticsData {
+  changelogId: string;
+  changelogTitle: string;
+  totalViews: number;
+  viewsPerDay: { date: string; count: number }[];
+  topReferrers: { referrer: string; count: number }[];
+}
+
+interface TeamAnalyticsData {
+  teamId: string;
+  teamName: string;
+  totalViews: number;
+  viewsPerDay: { date: string; count: number }[];
+  subscriberCount: number;
+  changelogs: { id: string; title: string; slug: string; views: number }[];
+}
+
 interface ApiResponse<T> {
   ok: boolean;
   data?: T;
@@ -37,7 +54,9 @@ export default function DashboardPage() {
   const [entries, setEntries] = useState<EntrySummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"pending" | "approved" | "published">("pending");
+  const [activeTab, setActiveTab] = useState<"pending" | "approved" | "published" | "analytics">("pending");
+  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
+  const [teamAnalytics, setTeamAnalytics] = useState<TeamAnalyticsData | null>(null);
 
   // For MVP, assume a demo team exists
   const DEMO_TEAM_ID = "demo";
@@ -47,7 +66,9 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    if (selectedChangelog) {
+    if (activeTab === "analytics") {
+      fetchAnalytics();
+    } else if (selectedChangelog) {
       fetchEntries(selectedChangelog);
     }
   }, [selectedChangelog, activeTab]);
@@ -58,7 +79,7 @@ export default function DashboardPage() {
       const json = (await res.json()) as ApiResponse<ChangelogSummary[]>;
       if (json.ok && json.data) {
         setChangelogs(json.data);
-        if (json.data.length > 0 && !selectedChangelog) {
+        if (json.data.length > 0 && !selectedChangelog && json.data[0]) {
           setSelectedChangelog(json.data[0].id);
         }
       }
@@ -102,6 +123,22 @@ export default function DashboardPage() {
     if (!selectedChangelog) return;
     await fetch(`${API_URL}/api/changelogs/${selectedChangelog}/publish`, { method: "POST" });
     fetchEntries(selectedChangelog);
+  }
+
+  async function fetchAnalytics() {
+    if (!selectedChangelog) return;
+    try {
+      const [clRes, teamRes] = await Promise.all([
+        fetch(`${API_URL}/api/analytics/changelogs/${selectedChangelog}/analytics`),
+        fetch(`${API_URL}/api/analytics/teams/${DEMO_TEAM_ID}/analytics`),
+      ]);
+      const clJson = (await clRes.json()) as ApiResponse<AnalyticsData>;
+      const teamJson = (await teamRes.json()) as ApiResponse<TeamAnalyticsData>;
+      if (clJson.ok && clJson.data) setAnalytics(clJson.data);
+      if (teamJson.ok && teamJson.data) setTeamAnalytics(teamJson.data);
+    } catch {
+      // API not reachable — handled by error state
+    }
   }
 
   const categoryColors: Record<string, string> = {
@@ -199,7 +236,7 @@ export default function DashboardPage() {
             <section className="lg:col-span-3">
               {/* Tabs */}
               <div className="flex gap-4 mb-6 border-b border-gray-200">
-                {(["pending", "approved", "published"] as const).map((tab) => (
+                {(["pending", "approved", "published", "analytics"] as const).map((tab) => (
                   <button
                     key={tab}
                     className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
@@ -225,7 +262,12 @@ export default function DashboardPage() {
               </div>
 
               {/* Entry list */}
-              {entries.length === 0 ? (
+              {activeTab === "analytics" ? (
+                <AnalyticsPanel
+                  analytics={analytics}
+                  teamAnalytics={teamAnalytics}
+                />
+              ) : entries.length === 0 ? (
                 <div className="text-center py-12 text-gray-400">
                   {activeTab === "pending"
                     ? "No entries pending approval. Push some commits to generate changelog entries!"
@@ -294,5 +336,187 @@ export default function DashboardPage() {
         )}
       </div>
     </main>
+  );
+}
+
+// ── Analytics Panel ──────────────────────────────────────────────
+
+function AnalyticsPanel({
+  analytics,
+  teamAnalytics,
+}: {
+  analytics: AnalyticsData | null;
+  teamAnalytics: TeamAnalyticsData | null;
+}) {
+  if (!analytics) {
+    return (
+      <div className="text-center py-12 text-gray-400">
+        Loading analytics...
+      </div>
+    );
+  }
+
+  const maxDaily = Math.max(1, ...analytics.viewsPerDay.map((d) => d.count));
+
+  return (
+    <div className="space-y-6">
+      {/* Summary cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-white rounded-lg border border-gray-200 p-5">
+          <p className="text-sm text-gray-500 mb-1">Total Views</p>
+          <p className="text-3xl font-bold text-gray-900">
+            {analytics.totalViews.toLocaleString()}
+          </p>
+        </div>
+        <div className="bg-white rounded-lg border border-gray-200 p-5">
+          <p className="text-sm text-gray-500 mb-1">Views (Last 30d)</p>
+          <p className="text-3xl font-bold text-gray-900">
+            {analytics.viewsPerDay
+              .reduce((sum, d) => sum + d.count, 0)
+              .toLocaleString()}
+          </p>
+        </div>
+        <div className="bg-white rounded-lg border border-gray-200 p-5">
+          <p className="text-sm text-gray-500 mb-1">Subscribers</p>
+          <p className="text-3xl font-bold text-gray-900">
+            {(teamAnalytics?.subscriberCount ?? 0).toLocaleString()}
+          </p>
+        </div>
+      </div>
+
+      {/* Daily trend chart */}
+      <div className="bg-white rounded-lg border border-gray-200 p-5">
+        <h3 className="text-sm font-semibold text-gray-700 mb-4">
+          Daily Views (Last 30 Days)
+        </h3>
+        {analytics.totalViews === 0 ? (
+          <p className="text-sm text-gray-400 text-center py-8">
+            No views yet. Share your changelog to start tracking.
+          </p>
+        ) : (
+          <BarChart data={analytics.viewsPerDay} maxValue={maxDaily} />
+        )}
+      </div>
+
+      {/* Top referrers */}
+      {analytics.topReferrers.length > 0 && (
+        <div className="bg-white rounded-lg border border-gray-200 p-5">
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">
+            Top Referrers
+          </h3>
+          <ul className="space-y-2">
+            {analytics.topReferrers.map((r, i) => (
+              <li
+                key={i}
+                className="flex items-center justify-between text-sm"
+              >
+                <span className="text-gray-600 truncate mr-4">
+                  {r.referrer || "(direct)"}
+                </span>
+                <span className="text-gray-400 font-mono text-xs">
+                  {r.count}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Per-changelog breakdown (team level) */}
+      {teamAnalytics && teamAnalytics.changelogs.length > 1 && (
+        <div className="bg-white rounded-lg border border-gray-200 p-5">
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">
+            Views by Changelog
+          </h3>
+          <ul className="space-y-2">
+            {teamAnalytics.changelogs.map((cl) => (
+              <li
+                key={cl.id}
+                className="flex items-center justify-between text-sm"
+              >
+                <span className="text-gray-600 truncate mr-4">
+                  {cl.title}
+                </span>
+                <span className="text-gray-400 font-mono text-xs">
+                  {cl.views.toLocaleString()}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Simple SVG Bar Chart ─────────────────────────────────────────
+
+function BarChart({
+  data,
+  maxValue,
+}: {
+  data: { date: string; count: number }[];
+  maxValue: number;
+}) {
+  const width = 600;
+  const height = 160;
+  const barWidth = Math.max(2, Math.floor((width - 40) / data.length) - 2);
+  const chartHeight = height - 30;
+  const scale = chartHeight / maxValue;
+
+  return (
+    <div className="overflow-x-auto">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className="w-full"
+        style={{ maxHeight: height }}
+        role="img"
+        aria-label="Daily views bar chart"
+      >
+        {data.map((d, i) => {
+          const x = 20 + i * (barWidth + 2);
+          const barH = Math.max(1, d.count * scale);
+          const y = chartHeight - barH;
+          return (
+            <g key={d.date}>
+              <title>
+                {d.date}: {d.count} views
+              </title>
+              <rect
+                x={x}
+                y={y}
+                width={barWidth}
+                height={barH}
+                rx={1}
+                fill={d.count > 0 ? "#3b82f6" : "#e5e7eb"}
+              />
+            </g>
+          );
+        })}
+        {/* Baseline */}
+        <line
+          x1={18}
+          y1={chartHeight}
+          x2={width - 2}
+          y2={chartHeight}
+          stroke="#d1d5db"
+          strokeWidth={1}
+        />
+      </svg>
+      {/* Date labels — show every 5th day to avoid crowding */}
+      <div className="flex mt-1" style={{ paddingLeft: 20 }}>
+        {data
+          .filter((_, i) => i % 5 === 0)
+          .map((d) => (
+            <div
+              key={d.date}
+              className="text-[10px] text-gray-400"
+              style={{ width: `${(100 / data.length) * 5}%` }}
+            >
+              {d.date.slice(5)}
+            </div>
+          ))}
+      </div>
+    </div>
   );
 }

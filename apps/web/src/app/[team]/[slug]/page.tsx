@@ -95,6 +95,8 @@ export default function PublicChangelogPage() {
           const directJson = (await directRes.json()) as ApiResponse<ChangelogData>;
           if (directJson.ok && directJson.data) {
             setChangelog(directJson.data);
+            // Track page view for directly fetched changelog
+            trackPageView(directJson.data.id);
           } else {
             setError("Changelog not found");
           }
@@ -107,6 +109,8 @@ export default function PublicChangelogPage() {
           } else {
             setChangelog(match);
           }
+          // Track page view
+          trackPageView(match.id);
         }
       } catch {
         setError("Unable to load changelog. The API server may not be running.");
@@ -117,6 +121,21 @@ export default function PublicChangelogPage() {
 
     fetchChangelog();
   }, [params.team, params.slug]);
+
+  // Track page view (fire-and-forget, no PII)
+  function trackPageView(changelogId: string) {
+    fetch(`${API_URL}/api/analytics/changelogs/${changelogId}/views`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        path: `/${params.team}/${params.slug}`,
+        referrer: document.referrer || null,
+        userAgent: navigator.userAgent,
+      }),
+    }).catch(() => {
+      // Silently ignore tracking failures — don't disrupt the user
+    });
+  }
 
   async function handleSubscribe(e: React.FormEvent) {
     e.preventDefault();
