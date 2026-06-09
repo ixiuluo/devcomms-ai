@@ -1,24 +1,252 @@
+import crypto from "node:crypto";
 import { Router } from "express";
+import { Octokit } from "octokit";
 import { prisma } from "../db.js";
 
 const router = Router();
 
-// ── GitHub Integration ────────────────────────────────────────
+// ── Config ──────────────────────────────────────────────────
 
-// OAuth callback — exchange code for token, store repo connection
-router.get("/callback", async (_req, res) => {
-  // Placeholder: GitHub OAuth callback
-  // 1. Exchange code for access token
-  // 2. Fetch user's repos
-  // 3. Store repo connection
-  res.json({ ok: true, data: { message: "GitHub OAuth callback placeholder" } });
+function getGitHubConfig():
+  | { clientId: string; clientSecret: string; appId: string; privateKey: string }
+  | null {
+  const clientId = process.env.GITHUB_CLIENT_ID;
+  const clientSecret = process.env.GITHUB_CLIENT_SECRET;
+  const appId = process.env.GITHUB_APP_ID;
+  const privateKey = process.env.GITHUB_PRIVATE_KEY;
+
+  if (!clientId || !clientSecret || !appId || !privateKey) {
+    return null;
+  }
+
+  return { clientId, clientSecret, appId, privateKey };
+}
+
+function getWebhookSecret(): string | null {
+  return process.env.GITHUB_WEBHOOK_SECRET ?? null;
+}
+
+// ── OAuth Flow ──────────────────────────────────────────────
+
+/**
+ * GET /github/login
+ * Redirect user to GitHub OAuth authorization page.
+ */
+router.get("/login", (_req, res) => {
+  const config = getGitHubConfig();
+  if (!config) {
+    res.status(503).json({
+      ok: false,
+      error: "GitHub App is not configured — set GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET",
+    });
+    return;
+  }
+
+  const hostUrl = process.env.HOST_URL ?? "http://localhost:3000";
+  const redirectUri = `${hostUrl}/api/github/callback`;
+
+  const url = new URL("https://github.com/login/oauth/authorize");
+  url.searchParams.set("client_id", config.clientId);
+  url.searchParams.set("redirect_uri", redirectUri);
+  url.searchParams.set("scope", "repo,user:email");
+  url.searchParams.set("state", crypto.randomUUID());
+
+  res.redirect(url.toString());
 });
 
-// Webhook receiver for push events
+/**
+ * GET /github/callback
+ * Exchange authorization code for access token, fetch repos, store them.
+ */
+router.get("/callback", async (req, res) => {
+  const config = getGitHubConfig();
+  if (!config) {
+    res.status(503).json({ ok: false, error: "GitHub App is not configured" });
+    return;
+  }
+
+  const { code } = req.query as { code?: string; state?: string };
+
+  if (!code) {
+    res.status(400).json({ ok: false, error: "Missing authorization code" });
+    return;
+  }
+
+  try {
+    // Exchange code for access token
+    const tokenResponse = await fetch(
+      "https://github.com/login/oauth/access_token",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          client_id: config.clientId,
+          client_secret: config.clientSecret,
+          code,
+        }),
+      },
+    );
+
+    const tokenData = (await tokenResponse.json()) as {
+      access_token?: string;
+      error?: string;
+    };
+
+    if (!tokenData.access_token) {
+      res.status(400).json({
+        ok: false,
+        error: tokenData.error ?? "Failed to exchange code",
+      });
+      return;
+    }
+
+    // Fetch authenticated user and their repos
+    const octokit = new Octokit({ auth: tokenData.access_token });
+
+    const { data: user } = await octokit.rest.users.getAuthenticated();
+    const { data: repos } = await octokit.rest.repos.listForAuthenticatedUser({
+      type: "owner",
+      sort: "updated",
+      per_page: 50,
+    });
+
+    // Find or create a team for this user
+    const teamSlug = `user-${user.login}`;
+    const team = await prisma.team.upsert({
+      where: { slug: teamSlug },
+      create: {
+        name: `${user.login}'s Team`,
+        slug: teamSlug,
+      },
+      update: {},
+    });
+
+    // Create or update user
+    await prisma.user.upsert({
+      where: { githubId: String(user.id) },
+      create: {
+        teamId: team.id,
+        githubId: String(user.id),
+        name: user.name ?? user.login,
+        email: user.email,
+        avatarUrl: user.avatar_url,
+        role: "owner",
+      },
+      update: {
+        name: user.name ?? user.login,
+        email: user.email,
+        avatarUrl: user.avatar_url,
+      },
+    });
+
+    // Store repos
+    const storedRepos = [];
+    for (const repo of repos) {
+      if (repo.fork) continue; // skip forks
+
+      const stored = await prisma.gitHubRepo.upsert({
+        where: { fullName: repo.full_name },
+        create: {
+          teamId: team.id,
+          githubId: repo.id,
+          owner: repo.owner.login,
+          name: repo.name,
+          fullName: repo.full_name,
+          private: repo.private,
+          defaultBranch: repo.default_branch,
+        },
+        update: {
+          private: repo.private,
+          defaultBranch: repo.default_branch,
+        },
+      });
+      storedRepos.push(stored);
+    }
+
+    // Create a default changelog for this team if none exists
+    const existingChangelog = await prisma.changelog.findFirst({
+      where: { teamId: team.id },
+    });
+
+    if (!existingChangelog) {
+      await prisma.changelog.create({
+        data: {
+          teamId: team.id,
+          title: `${user.login}'s Changelog`,
+          slug: `${user.login}-changelog`,
+          description: `Automated changelog for ${user.login}`,
+        },
+      });
+    }
+
+    res.json({
+      ok: true,
+      data: {
+        user: { login: user.login, name: user.name, avatar_url: user.avatar_url },
+        team,
+        repos: storedRepos.length,
+      },
+    });
+  } catch (err) {
+    console.error("GitHub OAuth callback error:", (err as Error).message);
+    res.status(500).json({ ok: false, error: "GitHub OAuth failed" });
+  }
+});
+
+// ── Webhooks ────────────────────────────────────────────────
+
+/**
+ * Verify GitHub webhook signature using the raw body.
+ */
+function verifyWebhookSignature(
+  rawBody: string,
+  signature: string | undefined,
+  secret: string,
+): boolean {
+  if (!signature) return false;
+
+  const computed = crypto
+    .createHmac("sha256", secret)
+    .update(rawBody, "utf8")
+    .digest("hex");
+  const expected = `sha256=${computed}`;
+
+  // Constant-time comparison
+  if (signature.length !== expected.length) return false;
+
+  return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+}
+
+/**
+ * POST /github/webhook
+ * Receive GitHub webhook events (push, pull_request, ping).
+ * Verifies signature before processing.
+ */
 router.post("/webhook", async (req, res) => {
   try {
     const event = req.headers["x-github-event"] as string;
-    const body = req.body as Record<string, unknown>;
+    const signature = req.headers["x-hub-signature-256"] as string | undefined;
+    const rawBody = req.rawBody;
+
+    // Verify webhook signature when secret is configured
+    const webhookSecret = getWebhookSecret();
+    if (webhookSecret) {
+      if (!rawBody) {
+        res.status(400).json({ ok: false, error: "Missing raw body" });
+        return;
+      }
+      if (!verifyWebhookSignature(rawBody, signature, webhookSecret)) {
+        console.warn("GitHub webhook: invalid signature");
+        res.status(401).json({ ok: false, error: "Invalid signature" });
+        return;
+      }
+    }
+
+    // Parse body from rawBody (JSON parser was bypassed for this route)
+    const body = rawBody ? JSON.parse(rawBody) : {};
 
     if (event === "ping") {
       res.json({ ok: true, data: { message: "Webhook registered successfully" } });
@@ -26,7 +254,6 @@ router.post("/webhook", async (req, res) => {
     }
 
     if (event === "push") {
-      // Process push event: extract commits, store them
       const repository = body.repository as Record<string, unknown> | undefined;
       const fullName = repository?.full_name as string | undefined;
       const commits = (body.commits as Array<Record<string, unknown>>) || [];
@@ -34,7 +261,6 @@ router.post("/webhook", async (req, res) => {
       if (fullName && commits.length > 0) {
         const repo = await prisma.gitHubRepo.findUnique({ where: { fullName } });
         if (repo) {
-          // Store commits
           for (const c of commits) {
             await prisma.commit.upsert({
               where: {
@@ -54,20 +280,49 @@ router.post("/webhook", async (req, res) => {
               update: {},
             });
           }
+
+          // Trigger AI generation for new commits (fire-and-forget)
+          generateEntryForCommits(repo.id, commits.map((c) => c.id as string));
         }
       }
+
       res.json({ ok: true, data: { processed: commits.length } });
       return;
     }
 
-    if (event === "pull_request") {
-      // Process PR event: store PR info with commits
-      const action = body.action as string;
+    if ((event === "pull_request" && body.action === "opened") || body.action === "synchronize") {
       const pullRequest = body.pull_request as Record<string, unknown> | undefined;
-      if (pullRequest && (action === "opened" || action === "synchronize")) {
-        // Store PR metadata — the actual changelog generation happens asynchronously
-        res.json({ ok: true, data: { message: "PR event received" } });
-        return;
+      if (pullRequest) {
+        const fullName = (body.repository as Record<string, unknown>)
+          ?.full_name as string | undefined;
+        if (fullName) {
+          const repo = await prisma.gitHubRepo.findUnique({ where: { fullName } });
+          if (repo) {
+            const prHead = pullRequest.head as Record<string, unknown> | undefined;
+            await prisma.commit.upsert({
+              where: {
+                repoId_sha: {
+                  repoId: repo.id,
+                  sha: prHead?.sha as string,
+                },
+              },
+              create: {
+                repoId: repo.id,
+                sha: prHead?.sha as string,
+                message: (pullRequest.title as string) || "",
+                authorName: (pullRequest.user as Record<string, string>)?.login,
+                prNumber: pullRequest.number as number,
+                prTitle: pullRequest.title as string,
+                prBody: pullRequest.body as string | undefined,
+                committedAt: new Date(pullRequest.created_at as string),
+              },
+              update: {
+                prTitle: pullRequest.title as string,
+                prBody: pullRequest.body as string | undefined,
+              },
+            });
+          }
+        }
       }
     }
 
@@ -77,6 +332,8 @@ router.post("/webhook", async (req, res) => {
     res.status(500).json({ ok: false, error: "Failed to process webhook" });
   }
 });
+
+// ── Repos ───────────────────────────────────────────────────
 
 // List connected repos for a team
 router.get("/repos", async (req, res) => {
@@ -96,5 +353,60 @@ router.get("/repos", async (req, res) => {
     res.status(500).json({ ok: false, error: "Failed to fetch repos" });
   }
 });
+
+// ── AI Generation (fire-and-forget after webhook) ──────────
+
+async function generateEntryForCommits(
+  repoId: string,
+  commitShas: string[],
+): Promise<void> {
+  try {
+    const repo = await prisma.gitHubRepo.findUnique({
+      where: { id: repoId },
+      include: { team: { include: { changelogs: { take: 1 } } } },
+    });
+    if (!repo || repo.team.changelogs.length === 0) return;
+
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const changelog = repo.team.changelogs[0]!;
+    const commits = await prisma.commit.findMany({
+      where: { repoId, sha: { in: commitShas } },
+    });
+
+    if (commits.length === 0) return;
+
+    // Use AI generator if available, otherwise create placeholder entries
+    const { generateChangelogEntry } = await import("../services/ai-generator.js");
+    const result = await generateChangelogEntry(
+      commits.map((c) => ({
+        message: c.message,
+        prTitle: c.prTitle,
+        prBody: c.prBody,
+      })),
+    );
+
+    if (!result || result.skip) return;
+
+    // Create entry for each commit
+    for (const commit of commits) {
+      await prisma.entry.create({
+        data: {
+          changelogId: changelog.id,
+          commitId: commit.id,
+          category: result.category,
+          title: result.title,
+          summary: result.summary,
+          body: result.body,
+          aiGenerated: true,
+          aiModel: result.aiModel,
+        },
+      });
+    }
+
+    console.log(`AI: generated entry for ${commits.length} commit(s)`);
+  } catch (err) {
+    console.error("AI generation failed for webhook:", (err as Error).message);
+  }
+}
 
 export default router;

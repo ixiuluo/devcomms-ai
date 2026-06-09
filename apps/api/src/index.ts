@@ -4,6 +4,15 @@ import morgan from 'morgan';
 import { APP_NAME, APP_VERSION, ApiSuccess } from '@dra/shared';
 import apiRoutes from './routes/index.js';
 
+// Extend Express Request to hold raw body for webhook verification
+declare global {
+  namespace Express {
+    interface Request {
+      rawBody?: string;
+    }
+  }
+}
+
 // Sentry is optional — errors go to stdout when SENTRY_DSN is not set
 let setupExpressErrorHandler: ((app: express.Express) => void) | null = null;
 
@@ -31,8 +40,27 @@ async function initSentry(): Promise<void> {
 const app = express();
 const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
+// ── Body parsing ───────────────────────────────────────────
+
+// Capture raw body for webhook signature verification (before JSON parser)
+app.use((req, _res, next) => {
+  if (!req.url.startsWith('/api/github/webhook')) {
+    next();
+    return;
+  }
+  let data = '';
+  req.on('data', (chunk: string) => {
+    data += chunk;
+  });
+  req.on('end', () => {
+    req.rawBody = data;
+    next();
+  });
+});
+
 app.use(helmet());
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+app.use(express.json());
 
 // ── Routes ──────────────────────────────────────────────────
 
