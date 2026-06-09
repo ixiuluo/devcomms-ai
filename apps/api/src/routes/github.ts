@@ -400,7 +400,7 @@ async function generateEntryForCommits(
     // Use AI generator if available, otherwise create placeholder entries
     const { generateChangelogEntry } = await import("../services/ai-generator.js");
     const result = await generateChangelogEntry(
-      commits.map((c) => ({
+      commits.map((c: { message: string; prTitle?: string | null; prBody?: string | null }) => ({
         message: c.message,
         prTitle: c.prTitle,
         prBody: c.prBody,

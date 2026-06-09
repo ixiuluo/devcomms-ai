@@ -43,6 +43,7 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm ci
+      - run: npm run db:generate -w apps/api
       - run: npx tsc --build
 
   test:
@@ -70,6 +71,7 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm ci
+      - run: npm run db:generate -w apps/api
       - run: npm run build -w packages/shared
       - run: npm test
         env:
@@ -87,6 +89,7 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm ci
+      - run: npm run db:generate -w apps/api
       - run: npm run build -w packages/shared
       - run: npm run build
         env:

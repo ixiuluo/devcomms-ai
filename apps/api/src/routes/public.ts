@@ -44,7 +44,7 @@ router.get("/:teamSlug", async (req, res) => {
     }
 
     // Get published entries across all published changelogs
-    const changelogIds = team.changelogs.map((c) => c.id);
+    const changelogIds = team.changelogs.map((c: { id: string }) => c.id);
 
     const entries = await prisma.entry.findMany({
       where: {

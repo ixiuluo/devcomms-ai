@@ -125,7 +125,6 @@ export default function DashboardPage() {
     }
 
     void fetchInitialData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Re-fetch entries when changelog or tab changes
@@ -135,7 +134,6 @@ export default function DashboardPage() {
     } else if (selectedChangelog) {
       void fetchEntries(selectedChangelog);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedChangelog, activeTab]);
 
   // ── Data fetching ──────────────────────────────────────────
@@ -147,7 +145,7 @@ export default function DashboardPage() {
       if (json.ok && json.data) {
         const { githubRepos, ...teamInfo } = json.data;
         setTeam(teamInfo);
-        setRepos(githubRepos ?? []);
+        setRepos(githubRepos);
         await fetchChangelogsForTeam(teamInfo.id);
         return;
       }
@@ -262,8 +260,9 @@ export default function DashboardPage() {
       });
       const json = (await res.json()) as ApiResponse<ChangelogSummary>;
       if (json.ok && json.data) {
-        setChangelogs((prev) => [...prev, json.data]);
-        setSelectedChangelog(json.data.id);
+        const data = json.data;
+        setChangelogs((prev) => [...prev, data]);
+        setSelectedChangelog(data.id);
       }
     } catch {
       // silent
@@ -408,7 +407,7 @@ export default function DashboardPage() {
                           <button
                             className="ml-3 mt-1 text-xs text-blue-600 hover:text-blue-800 font-medium disabled:text-gray-400 disabled:cursor-not-allowed"
                             disabled={creatingChangelog === repo.id}
-                            onClick={() => handleCreateChangelog(repo)}
+                            onClick={() => { void handleCreateChangelog(repo); }}
                           >
                             {creatingChangelog === repo.id ? "Creating..." : "+ New Changelog"}
                           </button>
@@ -443,7 +442,7 @@ export default function DashboardPage() {
                             ? "bg-blue-50 text-blue-700 font-medium"
                             : "text-gray-600 hover:bg-gray-100"
                         }`}
-                        onClick={() => setSelectedChangelog(cl.id)}
+                        onClick={() => { setSelectedChangelog(cl.id); }}
                       >
                         <div className="truncate">{cl.title}</div>
                         <div className="text-xs text-gray-400">{cl._count.entries} entries</div>
@@ -472,7 +471,7 @@ export default function DashboardPage() {
                             ? "border-blue-600 text-blue-600"
                             : "border-transparent text-gray-500 hover:text-gray-700"
                         }`}
-                        onClick={() => setActiveTab(tab)}
+                        onClick={() => { setActiveTab(tab); }}
                       >
                         {tab.charAt(0).toUpperCase() + tab.slice(1)}
                       </button>
@@ -481,7 +480,7 @@ export default function DashboardPage() {
                       {activeTab === "approved" && (
                         <button
                           className="rounded-lg bg-green-600 px-4 py-1.5 text-sm text-white font-medium hover:bg-green-700 transition-colors"
-                          onClick={handlePublish}
+                          onClick={() => { void handlePublish(); }}
                         >
                           Publish All Approved
                         </button>
@@ -538,13 +537,13 @@ export default function DashboardPage() {
                               <div className="flex gap-2 flex-shrink-0">
                                 <button
                                   className="rounded-md bg-green-100 px-3 py-1.5 text-xs font-medium text-green-700 hover:bg-green-200 transition-colors"
-                                  onClick={() => handleApprove(entry.id)}
+                                  onClick={() => { void handleApprove(entry.id); }}
                                 >
                                   Approve
                                 </button>
                                 <button
                                   className="rounded-md bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100 transition-colors"
-                                  onClick={() => handleReject(entry.id)}
+                                  onClick={() => { void handleReject(entry.id); }}
                                 >
                                   Reject
                                 </button>
@@ -711,7 +710,7 @@ function BarChart({
   return (
     <div className="overflow-x-auto">
       <svg
-        viewBox={`0 0 ${width} ${height}`}
+        viewBox={`0 0 ${String(width)} ${String(height)}`}
         className="w-full"
         style={{ maxHeight: height }}
         role="img"
@@ -753,7 +752,7 @@ function BarChart({
             <div
               key={d.date}
               className="text-[10px] text-gray-400"
-              style={{ width: `${(100 / data.length) * 5}%` }}
+              style={{ width: `${String((100 / data.length) * 5)}%` }}
             >
               {d.date.slice(5)}
             </div>

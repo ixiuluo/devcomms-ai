@@ -65,7 +65,7 @@ export default function PublicChangelogPage() {
         // First find the team
         const teamRes = await fetch(`${API_URL}/api/teams/${params.team}`);
         const teamJson = (await teamRes.json()) as ApiResponse<{ id: string }> & {
-          changelogs?: Array<{ id: string; slug: string }>;
+          changelogs?: { id: string; slug: string }[];
         };
 
         if (!teamJson.ok || !teamJson.data) {
@@ -119,7 +119,7 @@ export default function PublicChangelogPage() {
       }
     }
 
-    fetchChangelog();
+    void fetchChangelog();
   }, [params.team, params.slug]);
 
   // Track page view (fire-and-forget, no PII)
@@ -137,7 +137,7 @@ export default function PublicChangelogPage() {
     });
   }
 
-  async function handleSubscribe(e: React.FormEvent) {
+  async function handleSubscribe(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!teamId || !subEmail) return;
     setSubState("subscribing");
@@ -249,12 +249,12 @@ export default function PublicChangelogPage() {
                 </p>
               </div>
             ) : (
-              <form className="flex gap-2" onSubmit={handleSubscribe}>
+              <form className="flex gap-2" onSubmit={(e) => { void handleSubscribe(e); }}>
                 <input
                   type="email"
                   required
                   value={subEmail}
-                  onChange={(e) => setSubEmail(e.target.value)}
+                  onChange={(e) => { setSubEmail(e.target.value); }}
                   placeholder="you@company.com"
                   className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />

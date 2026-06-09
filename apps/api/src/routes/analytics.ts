@@ -111,10 +111,12 @@ router.get("/changelogs/:id/analytics", async (req, res) => {
       take: 10,
     });
 
-    const topReferrers = referrers.map((r) => ({
-      referrer: r.referrer!,
-      count: r._count.referrer,
-    }));
+    const topReferrers = referrers.map(
+      (r: { referrer: string | null; _count: { referrer: number } }) => ({
+        referrer: r.referrer!,
+        count: r._count.referrer,
+      }),
+    );
 
     res.json({
       ok: true,
@@ -149,7 +151,7 @@ router.get("/teams/:id/analytics", async (req, res) => {
       where: { teamId: req.params.id },
       select: { id: true },
     });
-    const changelogIds = changelogs.map((c) => c.id);
+    const changelogIds = changelogs.map((c: { id: string }) => c.id);
 
     // Total views across all team changelogs
     const totalViews = await prisma.pageView.count({
@@ -191,7 +193,7 @@ router.get("/teams/:id/analytics", async (req, res) => {
 
     // Per-changelog breakdown
     const perChangelog = await Promise.all(
-      changelogs.map(async (cl) => {
+      changelogs.map(async (cl: { id: string }) => {
         const views = await prisma.pageView.count({
           where: { changelogId: cl.id },
         });
