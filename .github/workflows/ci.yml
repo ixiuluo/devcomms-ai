@@ -63,6 +63,7 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm ci
+      - run: npm run build -w packages/shared
       - run: npm test
         env:
           DATABASE_URL: postgresql://dra:dra@localhost:5432/dra_test
