@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@dra/shared": "*",
+    "@sentry/node": "^8.55.2",
     "express": "^4.21.0",
     "helmet": "^8.0.0",
     "morgan": "^1.10.0"
