@@ -200,7 +200,7 @@ router.post("/webhook", async (req, res) => {
 
     switch (event.type) {
       case "checkout.session.completed": {
-        const session = event.data.object as Stripe.Checkout.Session;
+        const session = event.data.object;
         const teamId = session.metadata?.teamId;
         const subscriptionId = session.subscription as string;
 
@@ -241,7 +241,7 @@ router.post("/webhook", async (req, res) => {
 
       case "customer.subscription.updated":
       case "customer.subscription.deleted": {
-        const subscription = event.data.object as Stripe.Subscription;
+        const subscription = event.data.object;
         const customerId = subscription.customer as string;
 
         const dbSub = await prisma.subscription.findFirst({

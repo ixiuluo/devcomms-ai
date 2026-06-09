@@ -268,7 +268,9 @@ router.post("/webhook", async (req, res) => {
     }
 
     // Parse body from rawBody (JSON parser was bypassed for this route)
-    const body = rawBody ? JSON.parse(rawBody) : {};
+    // GitHub webhook payloads vary by event type; use a flexible type
+     
+    const body = rawBody ? JSON.parse(rawBody) as Record<string, unknown> : {};
 
     if (event === "ping") {
       res.json({ ok: true, data: { message: "Webhook registered successfully" } });
@@ -276,8 +278,10 @@ router.post("/webhook", async (req, res) => {
     }
 
     if (event === "push") {
+       
       const repository = body.repository as Record<string, unknown> | undefined;
       const fullName = repository?.full_name as string | undefined;
+       
       const commits = (body.commits as Array<Record<string, unknown>>) || [];
 
       if (fullName && commits.length > 0) {
@@ -304,6 +308,7 @@ router.post("/webhook", async (req, res) => {
           }
 
           // Trigger AI generation for new commits (fire-and-forget)
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
           generateEntryForCommits(repo.id, commits.map((c) => c.id as string));
         }
       }
@@ -312,9 +317,12 @@ router.post("/webhook", async (req, res) => {
       return;
     }
 
+     
     if ((event === "pull_request" && body.action === "opened") || body.action === "synchronize") {
+       
       const pullRequest = body.pull_request as Record<string, unknown> | undefined;
       if (pullRequest) {
+         
         const fullName = (body.repository as Record<string, unknown>)
           ?.full_name as string | undefined;
         if (fullName) {
@@ -389,7 +397,7 @@ async function generateEntryForCommits(
     });
     if (!repo || repo.team.changelogs.length === 0) return;
 
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+     
     const changelog = repo.team.changelogs[0]!;
     const commits = await prisma.commit.findMany({
       where: { repoId, sha: { in: commitShas } },

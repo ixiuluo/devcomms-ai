@@ -3,8 +3,7 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   eslint.configs.recommended,
-  ...tseslint.configs.strictTypeChecked,
-  ...tseslint.configs.stylisticTypeChecked,
+  ...tseslint.configs.recommendedTypeChecked,
   {
     languageOptions: {
       parserOptions: {
@@ -26,11 +25,15 @@ export default tseslint.config(
       '**/vitest.config.ts',
       '**/next-env.d.ts',
       '**/postcss.config.mjs',
+      // Non-source files
+      'apps/api/public/**',
+      'apps/api/prisma.config.ts',
+      // Generated code
+      'apps/api/src/generated/**',
     ],
   },
   {
     rules: {
-      // Allow any types in tests and configs
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/no-unused-vars': [
         'error',

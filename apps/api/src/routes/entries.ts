@@ -10,7 +10,7 @@ router.get("/", async (req, res) => {
   try {
     const { changelogId, approved, published } = req.query;
     const where: Record<string, unknown> = {};
-    if (changelogId) where.changelogId = changelogId as string;
+    if (changelogId) where.changelogId = changelogId;
     if (approved !== undefined) where.approved = approved === "true";
     if (published !== undefined) where.published = published === "true";
 
