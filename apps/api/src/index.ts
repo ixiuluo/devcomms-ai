@@ -44,7 +44,7 @@ const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 // Capture raw body for webhook signature verification (before JSON parser)
 app.use((req, _res, next) => {
-  if (!req.url.startsWith('/api/github/webhook')) {
+  if (!req.url.startsWith('/api/github/webhook') && !req.url.startsWith('/api/subscriptions/webhook')) {
     next();
     return;
   }

@@ -21,6 +21,7 @@ model Team {
   changelogs         Changelog[]
   slackIntegrations  SlackIntegration[]
   subscribers        Subscriber[]
+  subscriptions      Subscription[]
   apiKeys            ApiKey[]
 
   @@map("teams")
@@ -180,6 +181,27 @@ model SlackIntegration {
   team Team @relation(fields: [teamId], references: [id])
 
   @@map("slack_integrations")
+}
+
+// ── Subscriptions ─────────────────────────────────────────────
+
+model Subscription {
+  id            String    @id @default(uuid())
+  teamId        String    @unique @map("team_id")
+  stripeCustomerId String? @map("stripe_customer_id")
+  stripeSubscriptionId String? @map("stripe_subscription_id")
+  plan          String    @default("free") // free, starter, pro, enterprise
+  status        String    @default("active") // active, trialing, past_due, canceled, unpaid, incomplete
+  currentPeriodStart DateTime? @map("current_period_start")
+  currentPeriodEnd   DateTime? @map("current_period_end")
+  trialEndsAt   DateTime? @map("trial_ends_at")
+  canceledAt    DateTime? @map("canceled_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  team Team @relation(fields: [teamId], references: [id])
+
+  @@map("subscriptions")
 }
 
 // ── API Keys ──────────────────────────────────────────────────
