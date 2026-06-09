@@ -1,5 +1,5 @@
-import { PrismaClient } from "./generated/prisma/client.js";
-import { PrismaLibSql } from "@prisma/adapter-libsql";
+import { PrismaClient } from './generated/prisma/client.js';
+import { PrismaLibSql } from '@prisma/adapter-libsql';
 
 /**
  * Singleton Prisma client instance.
@@ -14,22 +14,18 @@ import { PrismaLibSql } from "@prisma/adapter-libsql";
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
 function createPrismaClient(): PrismaClient {
-  const dbUrl = process.env.DATABASE_URL ?? "file:./prisma/dev.db";
+  const dbUrl = process.env.DATABASE_URL ?? 'file:./prisma/dev.db';
 
   const adapter = new PrismaLibSql({ url: dbUrl });
 
   return new PrismaClient({
     adapter,
-    log:
-      process.env.NODE_ENV === "development"
-        ? ["warn", "error"]
-        : ["error"],
+    log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
   });
 }
 
-export const prisma: PrismaClient =
-  globalForPrisma.prisma ?? createPrismaClient();
+export const prisma: PrismaClient = globalForPrisma.prisma ?? createPrismaClient();
 
-if (process.env.NODE_ENV !== "production") {
+if (process.env.NODE_ENV !== 'production') {
   globalForPrisma.prisma = prisma;
 }

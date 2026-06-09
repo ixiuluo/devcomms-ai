@@ -1,5 +1,5 @@
-import { Router } from "express";
-import { prisma } from "../db.js";
+import { Router } from 'express';
+import { prisma } from '../db.js';
 
 const router = Router();
 
@@ -7,7 +7,7 @@ const router = Router();
 
 // Track a page view on a changelog
 // No IP stored — per acceptance criteria (no PII collected)
-router.post("/changelogs/:id/views", async (req, res) => {
+router.post('/changelogs/:id/views', async (req, res) => {
   try {
     const { path, referrer, userAgent } = req.body as {
       path: string;
@@ -16,7 +16,7 @@ router.post("/changelogs/:id/views", async (req, res) => {
     };
 
     if (!path) {
-      res.status(400).json({ ok: false, error: "path is required" });
+      res.status(400).json({ ok: false, error: 'path is required' });
       return;
     }
 
@@ -26,14 +26,12 @@ router.post("/changelogs/:id/views", async (req, res) => {
       select: { id: true },
     });
     if (!changelog) {
-      res.status(404).json({ ok: false, error: "Changelog not found" });
+      res.status(404).json({ ok: false, error: 'Changelog not found' });
       return;
     }
 
     // Anonymize user agent: keep only browser/OS family, strip version details
-    const anonymizedUA = userAgent
-      ? userAgent.replace(/\d+/g, "X").slice(0, 200)
-      : null;
+    const anonymizedUA = userAgent ? userAgent.replace(/\d+/g, 'X').slice(0, 200) : null;
 
     const view = await prisma.pageView.create({
       data: {
@@ -47,20 +45,20 @@ router.post("/changelogs/:id/views", async (req, res) => {
 
     res.status(201).json({ ok: true, data: { id: view.id } });
   } catch (err) {
-    console.error("POST /analytics/changelogs/:id/views error:", (err as Error).message);
-    res.status(500).json({ ok: false, error: "Failed to track page view" });
+    console.error('POST /analytics/changelogs/:id/views error:', (err as Error).message);
+    res.status(500).json({ ok: false, error: 'Failed to track page view' });
   }
 });
 
 // Get analytics for a single changelog
-router.get("/changelogs/:id/analytics", async (req, res) => {
+router.get('/changelogs/:id/analytics', async (req, res) => {
   try {
     const changelog = await prisma.changelog.findUnique({
       where: { id: req.params.id },
       select: { id: true, title: true },
     });
     if (!changelog) {
-      res.status(404).json({ ok: false, error: "Changelog not found" });
+      res.status(404).json({ ok: false, error: 'Changelog not found' });
       return;
     }
 
@@ -80,7 +78,7 @@ router.get("/changelogs/:id/analytics", async (req, res) => {
         createdAt: { gte: thirtyDaysAgo },
       },
       select: { createdAt: true },
-      orderBy: { createdAt: "asc" },
+      orderBy: { createdAt: 'asc' },
     });
 
     // Group by date
@@ -101,13 +99,13 @@ router.get("/changelogs/:id/analytics", async (req, res) => {
 
     // Top referrers
     const referrers = await prisma.pageView.groupBy({
-      by: ["referrer"],
+      by: ['referrer'],
       where: {
         changelogId: req.params.id,
         referrer: { not: null },
       },
       _count: { referrer: true },
-      orderBy: { _count: { referrer: "desc" } },
+      orderBy: { _count: { referrer: 'desc' } },
       take: 10,
     });
 
@@ -129,20 +127,20 @@ router.get("/changelogs/:id/analytics", async (req, res) => {
       },
     });
   } catch (err) {
-    console.error("GET /analytics/changelogs/:id/analytics error:", (err as Error).message);
-    res.status(500).json({ ok: false, error: "Failed to fetch analytics" });
+    console.error('GET /analytics/changelogs/:id/analytics error:', (err as Error).message);
+    res.status(500).json({ ok: false, error: 'Failed to fetch analytics' });
   }
 });
 
 // Get aggregate analytics for a team
-router.get("/teams/:id/analytics", async (req, res) => {
+router.get('/teams/:id/analytics', async (req, res) => {
   try {
     const team = await prisma.team.findUnique({
       where: { id: req.params.id },
       select: { id: true, name: true },
     });
     if (!team) {
-      res.status(404).json({ ok: false, error: "Team not found" });
+      res.status(404).json({ ok: false, error: 'Team not found' });
       return;
     }
 
@@ -169,7 +167,7 @@ router.get("/teams/:id/analytics", async (req, res) => {
         createdAt: { gte: thirtyDaysAgo },
       },
       select: { createdAt: true },
-      orderBy: { createdAt: "asc" },
+      orderBy: { createdAt: 'asc' },
     });
 
     const viewsPerDay: Record<string, number> = {};
@@ -217,8 +215,8 @@ router.get("/teams/:id/analytics", async (req, res) => {
       },
     });
   } catch (err) {
-    console.error("GET /analytics/teams/:id/analytics error:", (err as Error).message);
-    res.status(500).json({ ok: false, error: "Failed to fetch team analytics" });
+    console.error('GET /analytics/teams/:id/analytics error:', (err as Error).message);
+    res.status(500).json({ ok: false, error: 'Failed to fetch team analytics' });
   }
 });
 

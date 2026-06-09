@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { useState, useEffect, useCallback } from "react";
-import { APP_NAME, APP_VERSION } from "@dra/shared";
+import { useState, useEffect, useCallback } from 'react';
+import { APP_NAME, APP_VERSION } from '@dra/shared';
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -65,22 +65,22 @@ interface ApiResponse<T> {
   error?: string;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
 // ── GitHub OAuth helpers ─────────────────────────────────────
 
 function startGitHubOAuth() {
-  const returnUrl = window.location.origin + "/dashboard";
+  const returnUrl = window.location.origin + '/dashboard';
   window.location.href = `${API_URL}/api/github/login?return_url=${encodeURIComponent(returnUrl)}`;
 }
 
 function githubErrorMessage(code: string): string {
   const messages: Record<string, string> = {
     github_not_configured:
-      "GitHub integration is not configured on the server. Add GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET to the API environment.",
-    missing_code: "GitHub did not return an authorization code. Please try again.",
-    token_exchange_failed: "Failed to exchange the GitHub authorization code. Please try again.",
-    oauth_failed: "GitHub OAuth failed due to a server error. Please try again.",
+      'GitHub integration is not configured on the server. Add GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET to the API environment.',
+    missing_code: 'GitHub did not return an authorization code. Please try again.',
+    token_exchange_failed: 'Failed to exchange the GitHub authorization code. Please try again.',
+    oauth_failed: 'GitHub OAuth failed due to a server error. Please try again.',
   };
   return messages[code] ?? `GitHub connection failed (${code}). Please try again.`;
 }
@@ -99,7 +99,9 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [githubError, setGithubError] = useState<string | null>(null);
   const [githubSuccess, setGithubSuccess] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"pending" | "approved" | "published" | "analytics">("pending");
+  const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'published' | 'analytics'>(
+    'pending',
+  );
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [teamAnalytics, setTeamAnalytics] = useState<TeamAnalyticsData | null>(null);
   const [creatingChangelog, setCreatingChangelog] = useState<string | null>(null);
@@ -107,19 +109,19 @@ export default function DashboardPage() {
   // ── Parse URL params on mount ──────────────────────────────
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const errorCode = params.get("github_error");
-    const connected = params.get("github_connected");
-    const teamSlug = params.get("team");
-    const repoCount = params.get("repos");
+    const errorCode = params.get('github_error');
+    const connected = params.get('github_connected');
+    const teamSlug = params.get('team');
+    const repoCount = params.get('repos');
 
     if (errorCode) {
       setGithubError(githubErrorMessage(errorCode));
-      window.history.replaceState({}, "", "/dashboard");
-    } else if (connected === "true" && teamSlug) {
+      window.history.replaceState({}, '', '/dashboard');
+    } else if (connected === 'true' && teamSlug) {
       setGithubSuccess(
-        `GitHub connected successfully! ${repoCount ? `${repoCount} repos imported.` : ""}`,
+        `GitHub connected successfully! ${repoCount ? `${repoCount} repos imported.` : ''}`,
       );
-      window.history.replaceState({}, "", "/dashboard");
+      window.history.replaceState({}, '', '/dashboard');
       void fetchTeamData(teamSlug);
       return;
     }
@@ -129,7 +131,7 @@ export default function DashboardPage() {
 
   // Re-fetch entries when changelog or tab changes
   useEffect(() => {
-    if (activeTab === "analytics") {
+    if (activeTab === 'analytics') {
       void fetchAnalytics();
     } else if (selectedChangelog) {
       void fetchEntries(selectedChangelog);
@@ -191,8 +193,8 @@ export default function DashboardPage() {
   async function fetchEntries(changelogId: string) {
     setEntriesLoading(true);
     try {
-      const approved = activeTab === "pending" ? "false" : "true";
-      const published = activeTab === "published" ? "true" : "false";
+      const approved = activeTab === 'pending' ? 'false' : 'true';
+      const published = activeTab === 'published' ? 'true' : 'false';
       const res = await fetch(
         `${API_URL}/api/entries?changelogId=${changelogId}&approved=${approved}&published=${published}`,
       );
@@ -210,7 +212,7 @@ export default function DashboardPage() {
   async function fetchAnalytics() {
     if (!selectedChangelog) return;
     try {
-      const teamId = team?.id ?? "demo";
+      const teamId = team?.id ?? 'demo';
       const [clRes, teamRes] = await Promise.all([
         fetch(`${API_URL}/api/analytics/changelogs/${selectedChangelog}/analytics`),
         fetch(`${API_URL}/api/analytics/teams/${teamId}/analytics`),
@@ -227,18 +229,18 @@ export default function DashboardPage() {
   // ── Actions ────────────────────────────────────────────────
 
   async function handleApprove(entryId: string) {
-    await fetch(`${API_URL}/api/entries/${entryId}/approve`, { method: "POST" });
+    await fetch(`${API_URL}/api/entries/${entryId}/approve`, { method: 'POST' });
     if (selectedChangelog) void fetchEntries(selectedChangelog);
   }
 
   async function handleReject(entryId: string) {
-    await fetch(`${API_URL}/api/entries/${entryId}/reject`, { method: "POST" });
+    await fetch(`${API_URL}/api/entries/${entryId}/reject`, { method: 'POST' });
     if (selectedChangelog) void fetchEntries(selectedChangelog);
   }
 
   async function handlePublish() {
     if (!selectedChangelog) return;
-    await fetch(`${API_URL}/api/changelogs/${selectedChangelog}/publish`, { method: "POST" });
+    await fetch(`${API_URL}/api/changelogs/${selectedChangelog}/publish`, { method: 'POST' });
     void fetchEntries(selectedChangelog);
   }
 
@@ -248,8 +250,8 @@ export default function DashboardPage() {
     try {
       const slug = `${repo.name}-changelog`;
       const res = await fetch(`${API_URL}/api/changelogs`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           teamId: team.id,
           repoId: repo.id,
@@ -276,12 +278,12 @@ export default function DashboardPage() {
   const hasChangelogs = changelogs.length > 0;
   const hasData = hasRepos || hasChangelogs;
   const categoryColors: Record<string, string> = {
-    added: "bg-green-100 text-green-800",
-    changed: "bg-blue-100 text-blue-800",
-    fixed: "bg-yellow-100 text-yellow-800",
-    removed: "bg-red-100 text-red-800",
-    deprecated: "bg-orange-100 text-orange-800",
-    security: "bg-purple-100 text-purple-800",
+    added: 'bg-green-100 text-green-800',
+    changed: 'bg-blue-100 text-blue-800',
+    fixed: 'bg-yellow-100 text-yellow-800',
+    removed: 'bg-red-100 text-red-800',
+    deprecated: 'bg-orange-100 text-orange-800',
+    security: 'bg-purple-100 text-purple-800',
   };
 
   // ── Banner component (shared) ──────────────────────────────
@@ -310,7 +312,9 @@ export default function DashboardPage() {
           </div>
           <button
             className="text-sm text-green-700 hover:text-green-900 underline flex-shrink-0"
-            onClick={() => { setGithubSuccess(null); }}
+            onClick={() => {
+              setGithubSuccess(null);
+            }}
           >
             Dismiss
           </button>
@@ -353,9 +357,7 @@ export default function DashboardPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {Banners}
           <div className="text-center py-20">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-2">
-              Welcome to DevComms AI
-            </h2>
+            <h2 className="text-2xl font-semibold text-gray-900 mb-2">Welcome to DevComms AI</h2>
             <p className="text-gray-500 mb-6">
               Connect a GitHub repository to get started with AI-generated changelogs.
             </p>
@@ -399,7 +401,7 @@ export default function DashboardPage() {
                               {repo.owner}/{repo.name}
                             </div>
                             <div className="text-xs text-gray-400">
-                              {repo.private ? "🔒" : "🌐"} · {repo._count.commits} commits
+                              {repo.private ? '🔒' : '🌐'} · {repo._count.commits} commits
                             </div>
                           </div>
                         </div>
@@ -407,9 +409,11 @@ export default function DashboardPage() {
                           <button
                             className="ml-3 mt-1 text-xs text-blue-600 hover:text-blue-800 font-medium disabled:text-gray-400 disabled:cursor-not-allowed"
                             disabled={creatingChangelog === repo.id}
-                            onClick={() => { void handleCreateChangelog(repo); }}
+                            onClick={() => {
+                              void handleCreateChangelog(repo);
+                            }}
                           >
-                            {creatingChangelog === repo.id ? "Creating..." : "+ New Changelog"}
+                            {creatingChangelog === repo.id ? 'Creating...' : '+ New Changelog'}
                           </button>
                         )}
                       </li>
@@ -439,10 +443,12 @@ export default function DashboardPage() {
                       <button
                         className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
                           selectedChangelog === cl.id
-                            ? "bg-blue-50 text-blue-700 font-medium"
-                            : "text-gray-600 hover:bg-gray-100"
+                            ? 'bg-blue-50 text-blue-700 font-medium'
+                            : 'text-gray-600 hover:bg-gray-100'
                         }`}
-                        onClick={() => { setSelectedChangelog(cl.id); }}
+                        onClick={() => {
+                          setSelectedChangelog(cl.id);
+                        }}
                       >
                         <div className="truncate">{cl.title}</div>
                         <div className="text-xs text-gray-400">{cl._count.entries} entries</div>
@@ -463,24 +469,28 @@ export default function DashboardPage() {
                 <>
                   {/* Tabs */}
                   <div className="flex gap-4 mb-6 border-b border-gray-200">
-                    {(["pending", "approved", "published", "analytics"] as const).map((tab) => (
+                    {(['pending', 'approved', 'published', 'analytics'] as const).map((tab) => (
                       <button
                         key={tab}
                         className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                           activeTab === tab
-                            ? "border-blue-600 text-blue-600"
-                            : "border-transparent text-gray-500 hover:text-gray-700"
+                            ? 'border-blue-600 text-blue-600'
+                            : 'border-transparent text-gray-500 hover:text-gray-700'
                         }`}
-                        onClick={() => { setActiveTab(tab); }}
+                        onClick={() => {
+                          setActiveTab(tab);
+                        }}
                       >
                         {tab.charAt(0).toUpperCase() + tab.slice(1)}
                       </button>
                     ))}
                     <div className="ml-auto flex items-center">
-                      {activeTab === "approved" && (
+                      {activeTab === 'approved' && (
                         <button
                           className="rounded-lg bg-green-600 px-4 py-1.5 text-sm text-white font-medium hover:bg-green-700 transition-colors"
-                          onClick={() => { void handlePublish(); }}
+                          onClick={() => {
+                            void handlePublish();
+                          }}
                         >
                           Publish All Approved
                         </button>
@@ -489,7 +499,7 @@ export default function DashboardPage() {
                   </div>
 
                   {/* Content per tab */}
-                  {activeTab === "analytics" ? (
+                  {activeTab === 'analytics' ? (
                     <AnalyticsPanel analytics={analytics} teamAnalytics={teamAnalytics} />
                   ) : entriesLoading ? (
                     <div className="text-center py-12">
@@ -497,11 +507,11 @@ export default function DashboardPage() {
                     </div>
                   ) : entries.length === 0 ? (
                     <div className="text-center py-12 text-gray-400">
-                      {activeTab === "pending"
-                        ? "No entries pending approval. Push some commits to generate changelog entries!"
-                        : activeTab === "approved"
-                          ? "No approved entries yet. Review the pending queue."
-                          : "Nothing published yet. Approve and publish entries to see them here."}
+                      {activeTab === 'pending'
+                        ? 'No entries pending approval. Push some commits to generate changelog entries!'
+                        : activeTab === 'approved'
+                          ? 'No approved entries yet. Review the pending queue.'
+                          : 'Nothing published yet. Approve and publish entries to see them here.'}
                     </div>
                   ) : (
                     <ul className="space-y-3">
@@ -515,7 +525,7 @@ export default function DashboardPage() {
                               <div className="flex items-center gap-2 mb-1">
                                 <span
                                   className={`inline-block px-2 py-0.5 text-xs font-medium rounded-full ${
-                                    categoryColors[entry.category] ?? "bg-gray-100 text-gray-600"
+                                    categoryColors[entry.category] ?? 'bg-gray-100 text-gray-600'
                                   }`}
                                 >
                                   {entry.category}
@@ -529,27 +539,31 @@ export default function DashboardPage() {
                               <h3 className="text-sm font-medium text-gray-900">{entry.title}</h3>
                               {entry.commit && (
                                 <p className="text-xs text-gray-500 mt-1 truncate">
-                                  {entry.commit.message.split("\n")[0]}
+                                  {entry.commit.message.split('\n')[0]}
                                 </p>
                               )}
                             </div>
-                            {activeTab === "pending" && (
+                            {activeTab === 'pending' && (
                               <div className="flex gap-2 flex-shrink-0">
                                 <button
                                   className="rounded-md bg-green-100 px-3 py-1.5 text-xs font-medium text-green-700 hover:bg-green-200 transition-colors"
-                                  onClick={() => { void handleApprove(entry.id); }}
+                                  onClick={() => {
+                                    void handleApprove(entry.id);
+                                  }}
                                 >
                                   Approve
                                 </button>
                                 <button
                                   className="rounded-md bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100 transition-colors"
-                                  onClick={() => { void handleReject(entry.id); }}
+                                  onClick={() => {
+                                    void handleReject(entry.id);
+                                  }}
                                 >
                                   Reject
                                 </button>
                               </div>
                             )}
-                            {activeTab === "published" && (
+                            {activeTab === 'published' && (
                               <span className="text-xs text-green-600 font-medium flex-shrink-0">
                                 Published
                               </span>
@@ -606,9 +620,7 @@ function AnalyticsPanel({
   teamAnalytics: TeamAnalyticsData | null;
 }) {
   if (!analytics) {
-    return (
-      <div className="text-center py-12 text-gray-400">Loading analytics...</div>
-    );
+    return <div className="text-center py-12 text-gray-400">Loading analytics...</div>;
   }
 
   const maxDaily = Math.max(1, ...analytics.viewsPerDay.map((d) => d.count));
@@ -626,9 +638,7 @@ function AnalyticsPanel({
         <div className="bg-white rounded-lg border border-gray-200 p-5">
           <p className="text-sm text-gray-500 mb-1">Views (Last 30d)</p>
           <p className="text-3xl font-bold text-gray-900">
-            {analytics.viewsPerDay
-              .reduce((sum, d) => sum + d.count, 0)
-              .toLocaleString()}
+            {analytics.viewsPerDay.reduce((sum, d) => sum + d.count, 0).toLocaleString()}
           </p>
         </div>
         <div className="bg-white rounded-lg border border-gray-200 p-5">
@@ -641,9 +651,7 @@ function AnalyticsPanel({
 
       {/* Daily trend chart */}
       <div className="bg-white rounded-lg border border-gray-200 p-5">
-        <h3 className="text-sm font-semibold text-gray-700 mb-4">
-          Daily Views (Last 30 Days)
-        </h3>
+        <h3 className="text-sm font-semibold text-gray-700 mb-4">Daily Views (Last 30 Days)</h3>
         {analytics.totalViews === 0 ? (
           <p className="text-sm text-gray-400 text-center py-8">
             No views yet. Share your changelog to start tracking.
@@ -660,9 +668,7 @@ function AnalyticsPanel({
           <ul className="space-y-2">
             {analytics.topReferrers.map((r, i) => (
               <li key={i} className="flex items-center justify-between text-sm">
-                <span className="text-gray-600 truncate mr-4">
-                  {r.referrer || "(direct)"}
-                </span>
+                <span className="text-gray-600 truncate mr-4">{r.referrer || '(direct)'}</span>
                 <span className="text-gray-400 font-mono text-xs">{r.count}</span>
               </li>
             ))}
@@ -673,16 +679,12 @@ function AnalyticsPanel({
       {/* Per-changelog breakdown */}
       {teamAnalytics && teamAnalytics.changelogs.length > 1 && (
         <div className="bg-white rounded-lg border border-gray-200 p-5">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">
-            Views by Changelog
-          </h3>
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">Views by Changelog</h3>
           <ul className="space-y-2">
             {teamAnalytics.changelogs.map((cl) => (
               <li key={cl.id} className="flex items-center justify-between text-sm">
                 <span className="text-gray-600 truncate mr-4">{cl.title}</span>
-                <span className="text-gray-400 font-mono text-xs">
-                  {cl.views.toLocaleString()}
-                </span>
+                <span className="text-gray-400 font-mono text-xs">{cl.views.toLocaleString()}</span>
               </li>
             ))}
           </ul>
@@ -731,7 +733,7 @@ function BarChart({
                 width={barWidth}
                 height={barH}
                 rx={1}
-                fill={d.count > 0 ? "#3b82f6" : "#e5e7eb"}
+                fill={d.count > 0 ? '#3b82f6' : '#e5e7eb'}
               />
             </g>
           );

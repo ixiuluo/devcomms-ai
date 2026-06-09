@@ -1,84 +1,90 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Widget Test</title>
-  <style>
-    body {
-      margin: 0;
-      padding: 40px;
-      font-family: sans-serif;
-      background: #f3f4f6;
-    }
-    .test-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 20px;
-      max-width: 900px;
-      margin: 0 auto;
-    }
-    .test-case {
-      background: white;
-      border-radius: 8px;
-      padding: 20px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-    .test-case h2 {
-      margin: 0 0 12px 0;
-      font-size: 16px;
-    }
-    .test-case-dark {
-      background: #111827;
-      color: white;
-    }
-    h1 {
-      text-align: center;
-      margin-bottom: 24px;
-    }
-  </style>
-</head>
-<body>
-  <h1>DevComms Widget — Integration Test</h1>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Widget Test</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 40px;
+        font-family: sans-serif;
+        background: #f3f4f6;
+      }
+      .test-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        max-width: 900px;
+        margin: 0 auto;
+      }
+      .test-case {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      }
+      .test-case h2 {
+        margin: 0 0 12px 0;
+        font-size: 16px;
+      }
+      .test-case-dark {
+        background: #111827;
+        color: white;
+      }
+      h1 {
+        text-align: center;
+        margin-bottom: 24px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>DevComms Widget — Integration Test</h1>
 
-  <div class="test-grid">
-    <!-- Light theme, Acme team -->
-    <div class="test-case">
-      <h2>Light Theme — Acme (5 entries)</h2>
-      <div id="devcomms-changelog"></div>
+    <div class="test-grid">
+      <!-- Light theme, Acme team -->
+      <div class="test-case">
+        <h2>Light Theme — Acme (5 entries)</h2>
+        <div id="devcomms-changelog"></div>
+      </div>
+
+      <!-- Dark theme, Acme team -->
+      <div class="test-case test-case-dark">
+        <h2>Dark Theme — Acme (3 entries)</h2>
+        <div id="devcomms-changelog-dark"></div>
+      </div>
     </div>
 
-    <!-- Dark theme, Acme team -->
-    <div class="test-case test-case-dark">
-      <h2>Dark Theme — Acme (3 entries)</h2>
-      <div id="devcomms-changelog-dark"></div>
+    <!-- Test missing team -->
+    <div class="test-case" style="margin-top: 20px">
+      <h2>Graceful Error — Missing team config</h2>
+      <div id="devcomms-changelog-error"></div>
     </div>
-  </div>
 
-  <!-- Test missing team -->
-  <div class="test-case" style="margin-top:20px">
-    <h2>Graceful Error — Missing team config</h2>
-    <div id="devcomms-changelog-error"></div>
-  </div>
+    <!-- Widget for light theme -->
+    <script
+      src="http://localhost:3000/widget.js"
+      data-team="acme"
+      data-max="5"
+      data-theme="light"
+      data-api="http://localhost:3000"
+    ></script>
 
-  <!-- Widget for light theme -->
-  <script src="http://localhost:3000/widget.js"
-          data-team="acme"
-          data-max="5"
-          data-theme="light"
-          data-api="http://localhost:3000"></script>
+    <!-- Widget for dark theme -->
+    <script
+      src="http://localhost:3000/widget.js"
+      data-team="acme"
+      data-max="3"
+      data-theme="dark"
+      data-target="devcomms-changelog-dark"
+      data-api="http://localhost:3000"
+    ></script>
 
-  <!-- Widget for dark theme -->
-  <script src="http://localhost:3000/widget.js"
-          data-team="acme"
-          data-max="3"
-          data-theme="dark"
-          data-target="devcomms-changelog-dark"
-          data-api="http://localhost:3000"></script>
-
-  <!-- Widget for missing team (should show error) -->
-  <script src="http://localhost:3000/widget.js"
-          data-target="devcomms-changelog-error"
-          data-api="http://localhost:3000"></script>
-</body>
+    <!-- Widget for missing team (should show error) -->
+    <script
+      src="http://localhost:3000/widget.js"
+      data-target="devcomms-changelog-error"
+      data-api="http://localhost:3000"
+    ></script>
+  </body>
 </html>

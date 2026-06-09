@@ -1,4 +1,4 @@
-import { prisma } from "../db.js";
+import { prisma } from '../db.js';
 
 // ── Config ──────────────────────────────────────────────────
 
@@ -18,12 +18,12 @@ function getEmailConfig(): EmailConfig | null {
     port: Number(process.env.SMTP_PORT) || 587,
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
-    from: process.env.SMTP_FROM || "noreply@devcomms.ai",
+    from: process.env.SMTP_FROM || 'noreply@devcomms.ai',
   };
 }
 
 function getHostUrl(): string {
-  return process.env.HOST_URL ?? "http://localhost:3000";
+  return process.env.HOST_URL ?? 'http://localhost:3000';
 }
 
 // ── Slack ───────────────────────────────────────────────────
@@ -35,37 +35,37 @@ async function sendSlackNotification(
   teamSlug: string,
 ): Promise<void> {
   const categoryEmoji: Record<string, string> = {
-    added: ":sparkles:",
-    changed: ":wrench:",
-    fixed: ":bug:",
-    removed: ":wastebasket:",
-    deprecated: ":warning:",
-    security: ":lock:",
+    added: ':sparkles:',
+    changed: ':wrench:',
+    fixed: ':bug:',
+    removed: ':wastebasket:',
+    deprecated: ':warning:',
+    security: ':lock:',
   };
 
-  const emoji = categoryEmoji[entry.category] ?? ":memo:";
+  const emoji = categoryEmoji[entry.category] ?? ':memo:';
   const changelogUrl = `${getHostUrl()}/${teamSlug}/${changelog.slug}`;
 
   const blocks = [
     {
-      type: "header",
+      type: 'header',
       text: {
-        type: "plain_text",
+        type: 'plain_text',
         text: `${emoji} New Changelog Entry: ${entry.title}`,
       },
     },
     {
-      type: "section",
+      type: 'section',
       text: {
-        type: "mrkdwn",
+        type: 'mrkdwn',
         text: entry.summary,
       },
     },
     {
-      type: "context",
+      type: 'context',
       elements: [
         {
-          type: "mrkdwn",
+          type: 'mrkdwn',
           text: `<${changelogUrl}|${changelog.title}>`,
         },
       ],
@@ -73,13 +73,13 @@ async function sendSlackNotification(
   ];
 
   const response = await fetch(webhookUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ blocks }),
   });
 
   if (!response.ok) {
-    console.error("Slack notification failed:", response.status, await response.text());
+    console.error('Slack notification failed:', response.status, await response.text());
   }
 }
 
@@ -94,19 +94,16 @@ async function sendEmailNotification(
 ): Promise<void> {
   const config = getEmailConfig();
   if (!config) {
-    console.warn("Email notification skipped: SMTP not configured");
+    console.warn('Email notification skipped: SMTP not configured');
     return;
   }
 
-  const { createTransport } = await import("nodemailer");
+  const { createTransport } = await import('nodemailer');
   const transporter = createTransport({
     host: config.host,
     port: config.port,
     secure: config.port === 465,
-    auth:
-      config.user && config.pass
-        ? { user: config.user, pass: config.pass }
-        : undefined,
+    auth: config.user && config.pass ? { user: config.user, pass: config.pass } : undefined,
   });
 
   const changelogUrl = `${getHostUrl()}/${teamSlug}/${changelog.slug}`;
@@ -114,7 +111,7 @@ async function sendEmailNotification(
 
   const bodyHtml = entry.body
     ? `<div style="margin-top:16px;padding:12px;background:#f5f5f5;border-radius:6px;">${escapeHtml(entry.body)}</div>`
-    : "";
+    : '';
 
   const html = `
     <div style="font-family:sans-serif;max-width:560px;margin:0 auto;">
@@ -138,16 +135,16 @@ async function sendEmailNotification(
       html,
     });
   } catch (err) {
-    console.error("Email notification failed:", (err as Error).message);
+    console.error('Email notification failed:', (err as Error).message);
   }
 }
 
 function escapeHtml(text: string): string {
   return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 // ── Orchestrator ────────────────────────────────────────────
@@ -169,7 +166,7 @@ export async function notifyPublishedEntries(changelogId: string): Promise<void>
         },
         entries: {
           where: { published: true, publishedAt: { not: null } },
-          orderBy: { publishedAt: "desc" },
+          orderBy: { publishedAt: 'desc' },
           take: 10,
         },
       },
@@ -202,6 +199,6 @@ export async function notifyPublishedEntries(changelogId: string): Promise<void>
       }
     }
   } catch (err) {
-    console.error("notifyPublishedEntries error:", (err as Error).message);
+    console.error('notifyPublishedEntries error:', (err as Error).message);
   }
 }

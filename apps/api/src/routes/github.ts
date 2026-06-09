@@ -1,15 +1,18 @@
-import crypto from "node:crypto";
-import { Router } from "express";
-import { Octokit } from "octokit";
-import { prisma } from "../db.js";
+import crypto from 'node:crypto';
+import { Router } from 'express';
+import { Octokit } from 'octokit';
+import { prisma } from '../db.js';
 
 const router = Router();
 
 // ── Config ──────────────────────────────────────────────────
 
-function getGitHubConfig():
-  | { clientId: string; clientSecret: string; appId: string; privateKey: string }
-  | null {
+function getGitHubConfig(): {
+  clientId: string;
+  clientSecret: string;
+  appId: string;
+  privateKey: string;
+} | null {
   const clientId = process.env.GITHUB_CLIENT_ID;
   const clientSecret = process.env.GITHUB_CLIENT_SECRET;
   const appId = process.env.GITHUB_APP_ID;
@@ -33,29 +36,29 @@ function getWebhookSecret(): string | null {
  * Redirect user to GitHub OAuth authorization page.
  * Accepts optional ?return_url=... to redirect back after auth completes.
  */
-router.get("/login", (req, res) => {
+router.get('/login', (req, res) => {
   const config = getGitHubConfig();
   if (!config) {
-    const returnUrl = (req.query.return_url as string) ?? "/dashboard";
-    const errorUrl = new URL(returnUrl, "http://localhost");
-    errorUrl.searchParams.set("github_error", "github_not_configured");
+    const returnUrl = (req.query.return_url as string) ?? '/dashboard';
+    const errorUrl = new URL(returnUrl, 'http://localhost');
+    errorUrl.searchParams.set('github_error', 'github_not_configured');
     res.redirect(errorUrl.pathname + errorUrl.search);
     return;
   }
 
-  const hostUrl = process.env.HOST_URL ?? "http://localhost:3000";
+  const hostUrl = process.env.HOST_URL ?? 'http://localhost:3000';
   const redirectUri = `${hostUrl}/api/github/callback`;
-  const returnUrl = (req.query.return_url as string) ?? "/dashboard";
+  const returnUrl = (req.query.return_url as string) ?? '/dashboard';
 
   // Encode return_url into state alongside the CSRF nonce
   const nonce = crypto.randomUUID();
-  const state = Buffer.from(JSON.stringify({ nonce, returnUrl })).toString("base64url");
+  const state = Buffer.from(JSON.stringify({ nonce, returnUrl })).toString('base64url');
 
-  const url = new URL("https://github.com/login/oauth/authorize");
-  url.searchParams.set("client_id", config.clientId);
-  url.searchParams.set("redirect_uri", redirectUri);
-  url.searchParams.set("scope", "repo,user:email");
-  url.searchParams.set("state", state);
+  const url = new URL('https://github.com/login/oauth/authorize');
+  url.searchParams.set('client_id', config.clientId);
+  url.searchParams.set('redirect_uri', redirectUri);
+  url.searchParams.set('scope', 'repo,user:email');
+  url.searchParams.set('state', state);
 
   res.redirect(url.toString());
 });
@@ -65,22 +68,23 @@ router.get("/login", (req, res) => {
  * Exchange authorization code for access token, fetch repos, store them.
  * Redirects back to the frontend with team info on success, or error on failure.
  */
-router.get("/callback", async (req, res) => {
+router.get('/callback', async (req, res) => {
   const config = getGitHubConfig();
   if (!config) {
-    res.status(503).json({ ok: false, error: "GitHub App is not configured" });
+    res.status(503).json({ ok: false, error: 'GitHub App is not configured' });
     return;
   }
 
   const { code, state } = req.query as { code?: string; state?: string };
 
   // Decode return_url from state parameter (encoded as base64url JSON in /login)
-  let returnUrl = "/dashboard";
+  let returnUrl = '/dashboard';
   if (state) {
     try {
-      const decoded = JSON.parse(
-        Buffer.from(state, "base64url").toString("utf8"),
-      ) as { nonce: string; returnUrl: string };
+      const decoded = JSON.parse(Buffer.from(state, 'base64url').toString('utf8')) as {
+        nonce: string;
+        returnUrl: string;
+      };
       if (decoded.returnUrl) returnUrl = decoded.returnUrl;
     } catch {
       // state might be a plain UUID from older login flows — ignore
@@ -89,33 +93,30 @@ router.get("/callback", async (req, res) => {
 
   // Helper: redirect back to frontend with error
   function redirectError(message: string) {
-    const errorUrl = new URL(returnUrl, "http://localhost");
-    errorUrl.searchParams.set("github_error", message);
+    const errorUrl = new URL(returnUrl, 'http://localhost');
+    errorUrl.searchParams.set('github_error', message);
     res.redirect(errorUrl.pathname + errorUrl.search);
   }
 
   if (!code) {
-    redirectError("missing_code");
+    redirectError('missing_code');
     return;
   }
 
   try {
     // Exchange code for access token
-    const tokenResponse = await fetch(
-      "https://github.com/login/oauth/access_token",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify({
-          client_id: config.clientId,
-          client_secret: config.clientSecret,
-          code,
-        }),
+    const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
       },
-    );
+      body: JSON.stringify({
+        client_id: config.clientId,
+        client_secret: config.clientSecret,
+        code,
+      }),
+    });
 
     const tokenData = (await tokenResponse.json()) as {
       access_token?: string;
@@ -123,7 +124,7 @@ router.get("/callback", async (req, res) => {
     };
 
     if (!tokenData.access_token) {
-      redirectError(tokenData.error ?? "token_exchange_failed");
+      redirectError(tokenData.error ?? 'token_exchange_failed');
       return;
     }
 
@@ -132,8 +133,8 @@ router.get("/callback", async (req, res) => {
 
     const { data: user } = await octokit.rest.users.getAuthenticated();
     const { data: repos } = await octokit.rest.repos.listForAuthenticatedUser({
-      type: "owner",
-      sort: "updated",
+      type: 'owner',
+      sort: 'updated',
       per_page: 50,
     });
 
@@ -157,7 +158,7 @@ router.get("/callback", async (req, res) => {
         name: user.name ?? user.login,
         email: user.email,
         avatarUrl: user.avatar_url,
-        role: "owner",
+        role: 'owner',
       },
       update: {
         name: user.name ?? user.login,
@@ -207,14 +208,14 @@ router.get("/callback", async (req, res) => {
     }
 
     // Redirect back to frontend dashboard with team info
-    const successUrl = new URL(returnUrl, "http://localhost");
-    successUrl.searchParams.set("github_connected", "true");
-    successUrl.searchParams.set("team", team.slug);
-    successUrl.searchParams.set("repos", String(storedCount));
+    const successUrl = new URL(returnUrl, 'http://localhost');
+    successUrl.searchParams.set('github_connected', 'true');
+    successUrl.searchParams.set('team', team.slug);
+    successUrl.searchParams.set('repos', String(storedCount));
     res.redirect(successUrl.pathname + successUrl.search);
   } catch (err) {
-    console.error("GitHub OAuth callback error:", (err as Error).message);
-    redirectError("oauth_failed");
+    console.error('GitHub OAuth callback error:', (err as Error).message);
+    redirectError('oauth_failed');
   }
 });
 
@@ -230,10 +231,7 @@ function verifyWebhookSignature(
 ): boolean {
   if (!signature) return false;
 
-  const computed = crypto
-    .createHmac("sha256", secret)
-    .update(rawBody, "utf8")
-    .digest("hex");
+  const computed = crypto.createHmac('sha256', secret).update(rawBody, 'utf8').digest('hex');
   const expected = `sha256=${computed}`;
 
   // Constant-time comparison
@@ -247,41 +245,40 @@ function verifyWebhookSignature(
  * Receive GitHub webhook events (push, pull_request, ping).
  * Verifies signature before processing.
  */
-router.post("/webhook", async (req, res) => {
+router.post('/webhook', async (req, res) => {
   try {
-    const event = req.headers["x-github-event"] as string;
-    const signature = req.headers["x-hub-signature-256"] as string | undefined;
+    const event = req.headers['x-github-event'] as string;
+    const signature = req.headers['x-hub-signature-256'] as string | undefined;
     const rawBody = req.rawBody;
 
     // Verify webhook signature when secret is configured
     const webhookSecret = getWebhookSecret();
     if (webhookSecret) {
       if (!rawBody) {
-        res.status(400).json({ ok: false, error: "Missing raw body" });
+        res.status(400).json({ ok: false, error: 'Missing raw body' });
         return;
       }
       if (!verifyWebhookSignature(rawBody, signature, webhookSecret)) {
-        console.warn("GitHub webhook: invalid signature");
-        res.status(401).json({ ok: false, error: "Invalid signature" });
+        console.warn('GitHub webhook: invalid signature');
+        res.status(401).json({ ok: false, error: 'Invalid signature' });
         return;
       }
     }
 
     // Parse body from rawBody (JSON parser was bypassed for this route)
     // GitHub webhook payloads vary by event type; use a flexible type
-     
-    const body = rawBody ? JSON.parse(rawBody) as Record<string, unknown> : {};
 
-    if (event === "ping") {
-      res.json({ ok: true, data: { message: "Webhook registered successfully" } });
+    const body = rawBody ? (JSON.parse(rawBody) as Record<string, unknown>) : {};
+
+    if (event === 'ping') {
+      res.json({ ok: true, data: { message: 'Webhook registered successfully' } });
       return;
     }
 
-    if (event === "push") {
-       
+    if (event === 'push') {
       const repository = body.repository as Record<string, unknown> | undefined;
       const fullName = repository?.full_name as string | undefined;
-       
+
       const commits = (body.commits as Array<Record<string, unknown>>) || [];
 
       if (fullName && commits.length > 0) {
@@ -298,7 +295,7 @@ router.post("/webhook", async (req, res) => {
               create: {
                 repoId: repo.id,
                 sha: c.id as string,
-                message: (c.message as string) || "",
+                message: (c.message as string) || '',
                 authorName: (c.author as Record<string, string>)?.name,
                 authorEmail: (c.author as Record<string, string>)?.email,
                 committedAt: new Date(c.timestamp as string),
@@ -309,7 +306,10 @@ router.post("/webhook", async (req, res) => {
 
           // Trigger AI generation for new commits (fire-and-forget)
           // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          generateEntryForCommits(repo.id, commits.map((c) => c.id as string));
+          generateEntryForCommits(
+            repo.id,
+            commits.map((c) => c.id as string),
+          );
         }
       }
 
@@ -317,14 +317,12 @@ router.post("/webhook", async (req, res) => {
       return;
     }
 
-     
-    if ((event === "pull_request" && body.action === "opened") || body.action === "synchronize") {
-       
+    if ((event === 'pull_request' && body.action === 'opened') || body.action === 'synchronize') {
       const pullRequest = body.pull_request as Record<string, unknown> | undefined;
       if (pullRequest) {
-         
-        const fullName = (body.repository as Record<string, unknown>)
-          ?.full_name as string | undefined;
+        const fullName = (body.repository as Record<string, unknown>)?.full_name as
+          | string
+          | undefined;
         if (fullName) {
           const repo = await prisma.gitHubRepo.findUnique({ where: { fullName } });
           if (repo) {
@@ -339,7 +337,7 @@ router.post("/webhook", async (req, res) => {
               create: {
                 repoId: repo.id,
                 sha: prHead?.sha as string,
-                message: (pullRequest.title as string) || "",
+                message: (pullRequest.title as string) || '',
                 authorName: (pullRequest.user as Record<string, string>)?.login,
                 prNumber: pullRequest.number as number,
                 prTitle: pullRequest.title as string,
@@ -358,19 +356,19 @@ router.post("/webhook", async (req, res) => {
 
     res.json({ ok: true, data: { message: `Event '${event}' acknowledged` } });
   } catch (err) {
-    console.error("POST /github/webhook error:", (err as Error).message);
-    res.status(500).json({ ok: false, error: "Failed to process webhook" });
+    console.error('POST /github/webhook error:', (err as Error).message);
+    res.status(500).json({ ok: false, error: 'Failed to process webhook' });
   }
 });
 
 // ── Repos ───────────────────────────────────────────────────
 
 // List connected repos for a team
-router.get("/repos", async (req, res) => {
+router.get('/repos', async (req, res) => {
   try {
     const teamId = req.query.teamId as string;
     if (!teamId) {
-      res.status(400).json({ ok: false, error: "teamId query param required" });
+      res.status(400).json({ ok: false, error: 'teamId query param required' });
       return;
     }
     const repos = await prisma.gitHubRepo.findMany({
@@ -379,17 +377,14 @@ router.get("/repos", async (req, res) => {
     });
     res.json({ ok: true, data: repos });
   } catch (err) {
-    console.error("GET /github/repos error:", (err as Error).message);
-    res.status(500).json({ ok: false, error: "Failed to fetch repos" });
+    console.error('GET /github/repos error:', (err as Error).message);
+    res.status(500).json({ ok: false, error: 'Failed to fetch repos' });
   }
 });
 
 // ── AI Generation (fire-and-forget after webhook) ──────────
 
-async function generateEntryForCommits(
-  repoId: string,
-  commitShas: string[],
-): Promise<void> {
+async function generateEntryForCommits(repoId: string, commitShas: string[]): Promise<void> {
   try {
     const repo = await prisma.gitHubRepo.findUnique({
       where: { id: repoId },
@@ -397,7 +392,6 @@ async function generateEntryForCommits(
     });
     if (!repo || repo.team.changelogs.length === 0) return;
 
-     
     const changelog = repo.team.changelogs[0]!;
     const commits = await prisma.commit.findMany({
       where: { repoId, sha: { in: commitShas } },
@@ -406,7 +400,7 @@ async function generateEntryForCommits(
     if (commits.length === 0) return;
 
     // Use AI generator if available, otherwise create placeholder entries
-    const { generateChangelogEntry } = await import("../services/ai-generator.js");
+    const { generateChangelogEntry } = await import('../services/ai-generator.js');
     const result = await generateChangelogEntry(
       commits.map((c: { message: string; prTitle?: string | null; prBody?: string | null }) => ({
         message: c.message,
@@ -435,7 +429,7 @@ async function generateEntryForCommits(
 
     console.log(`AI: generated entry for ${commits.length} commit(s)`);
   } catch (err) {
-    console.error("AI generation failed for webhook:", (err as Error).message);
+    console.error('AI generation failed for webhook:', (err as Error).message);
   }
 }
 

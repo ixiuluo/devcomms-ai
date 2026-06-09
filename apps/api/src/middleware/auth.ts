@@ -1,19 +1,15 @@
-import type { Request, Response, NextFunction } from "express";
+import type { Request, Response, NextFunction } from 'express';
 
 /**
  * Simple API key auth middleware.
  * Checks Authorization: Bearer <api-key> header.
  * This is for API access (JSON export, widget). Not for user sessions.
  */
-export function apiKeyAuth(
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): void {
+export function apiKeyAuth(req: Request, res: Response, next: NextFunction): void {
   const authHeader = req.headers.authorization;
 
-  if (!authHeader?.startsWith("Bearer ")) {
-    res.status(401).json({ ok: false, error: "Missing or invalid authorization header" });
+  if (!authHeader?.startsWith('Bearer ')) {
+    res.status(401).json({ ok: false, error: 'Missing or invalid authorization header' });
     return;
   }
 

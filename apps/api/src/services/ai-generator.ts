@@ -20,17 +20,19 @@ const CATEGORY_DEFINITIONS = `
 /**
  * Build a prompt for generating a changelog entry from a commit.
  */
-export function buildChangelogPrompt(commits: Array<{
-  message: string;
-  prTitle?: string | null;
-  prBody?: string | null;
-}>): string {
+export function buildChangelogPrompt(
+  commits: Array<{
+    message: string;
+    prTitle?: string | null;
+    prBody?: string | null;
+  }>,
+): string {
   const commitList = commits
     .map(
       (c, i) =>
-        `Commit ${i + 1}:\n  Message: ${c.message}\n  ${c.prTitle ? `PR Title: ${c.prTitle}\n  ` : ""}${c.prBody ? `PR Body: ${c.prBody}\n  ` : ""}`,
+        `Commit ${i + 1}:\n  Message: ${c.message}\n  ${c.prTitle ? `PR Title: ${c.prTitle}\n  ` : ''}${c.prBody ? `PR Body: ${c.prBody}\n  ` : ''}`,
     )
-    .join("\n\n");
+    .join('\n\n');
 
   return `You are a developer advocate writing a user-facing changelog entry. Convert the following git commits into a clear, helpful changelog entry that end users (not developers) will understand.
 
@@ -74,7 +76,7 @@ export function getAIConfig(): AIGenerationConfig | null {
   if (!apiKey) return null;
   return {
     apiKey,
-    model: process.env.AI_MODEL || "claude-sonnet-4-6",
+    model: process.env.AI_MODEL || 'claude-sonnet-4-6',
   };
 }
 
@@ -98,36 +100,36 @@ export async function generateChangelogEntry(
 } | null> {
   const config = getAIConfig();
   if (!config) {
-    console.warn("AI generation skipped: ANTHROPIC_API_KEY not set");
+    console.warn('AI generation skipped: ANTHROPIC_API_KEY not set');
     return null;
   }
 
   const prompt = buildChangelogPrompt(commits);
 
   try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
-        "x-api-key": config.apiKey,
-        "anthropic-version": "2023-06-01",
+        'Content-Type': 'application/json',
+        'x-api-key': config.apiKey,
+        'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
         model: config.model,
         max_tokens: 1024,
-        messages: [{ role: "user", content: prompt }],
+        messages: [{ role: 'user', content: prompt }],
       }),
     });
 
     if (!response.ok) {
-      console.error("Anthropic API error:", response.status, await response.text());
+      console.error('Anthropic API error:', response.status, await response.text());
       return null;
     }
 
     const data = (await response.json()) as {
       content: Array<{ type: string; text?: string }>;
     };
-    const text = data.content?.find((b) => b.type === "text")?.text;
+    const text = data.content?.find((b) => b.type === 'text')?.text;
     if (!text) return null;
 
     // Try to parse JSON from the response (may be wrapped in markdown code blocks)
@@ -146,12 +148,12 @@ export async function generateChangelogEntry(
       title: parsed.title,
       summary: parsed.summary,
       body: parsed.body ?? null,
-      category: parsed.category ?? "changed",
+      category: parsed.category ?? 'changed',
       skip: parsed.skip ?? false,
       aiModel: config.model,
     };
   } catch (err) {
-    console.error("AI generation failed:", (err as Error).message);
+    console.error('AI generation failed:', (err as Error).message);
     return null;
   }
 }

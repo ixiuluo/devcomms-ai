@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
 
 interface ChangelogEntry {
   id: string;
@@ -37,15 +37,15 @@ interface ApiResponse<T> {
 }
 
 const categoryIcons: Record<string, string> = {
-  added: "✨",
-  changed: "🔧",
-  fixed: "🐛",
-  removed: "🗑️",
-  deprecated: "⚠️",
-  security: "🔒",
+  added: '✨',
+  changed: '🔧',
+  fixed: '🐛',
+  removed: '🗑️',
+  deprecated: '⚠️',
+  security: '🔒',
 };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
 export default function PublicChangelogPage() {
   const params = useParams<{ team: string; slug: string }>();
@@ -53,8 +53,8 @@ export default function PublicChangelogPage() {
   const [teamId, setTeamId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [subEmail, setSubEmail] = useState("");
-  const [subState, setSubState] = useState<"idle" | "subscribing" | "success" | "error">("idle");
+  const [subEmail, setSubEmail] = useState('');
+  const [subState, setSubState] = useState<'idle' | 'subscribing' | 'success' | 'error'>('idle');
   const [subError, setSubError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -69,7 +69,7 @@ export default function PublicChangelogPage() {
         };
 
         if (!teamJson.ok || !teamJson.data) {
-          setError("Team not found");
+          setError('Team not found');
           setLoading(false);
           return;
         }
@@ -77,18 +77,18 @@ export default function PublicChangelogPage() {
         setTeamId(teamJson.data.id);
 
         // Find the changelog with matching slug
-        const changelogsRes = await fetch(
-          `${API_URL}/api/changelogs?teamId=${teamJson.data.id}`,
-        );
+        const changelogsRes = await fetch(`${API_URL}/api/changelogs?teamId=${teamJson.data.id}`);
         const changelogsJson = (await changelogsRes.json()) as ApiResponse<ChangelogData[]>;
 
         if (!changelogsJson.ok || !changelogsJson.data) {
-          setError("No changelogs found");
+          setError('No changelogs found');
           setLoading(false);
           return;
         }
 
-        const match = changelogsJson.data.find((cl) => cl.id === params.slug || cl.id === params.slug);
+        const match = changelogsJson.data.find(
+          (cl) => cl.id === params.slug || cl.id === params.slug,
+        );
         if (!match) {
           // Try finding by fetching directly
           const directRes = await fetch(`${API_URL}/api/changelogs/${params.slug}`);
@@ -98,7 +98,7 @@ export default function PublicChangelogPage() {
             // Track page view for directly fetched changelog
             trackPageView(directJson.data.id);
           } else {
-            setError("Changelog not found");
+            setError('Changelog not found');
           }
         } else {
           // Fetch full changelog with entries
@@ -113,7 +113,7 @@ export default function PublicChangelogPage() {
           trackPageView(match.id);
         }
       } catch {
-        setError("Unable to load changelog. The API server may not be running.");
+        setError('Unable to load changelog. The API server may not be running.');
       } finally {
         setLoading(false);
       }
@@ -125,8 +125,8 @@ export default function PublicChangelogPage() {
   // Track page view (fire-and-forget, no PII)
   function trackPageView(changelogId: string) {
     fetch(`${API_URL}/api/analytics/changelogs/${changelogId}/views`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         path: `/${params.team}/${params.slug}`,
         referrer: document.referrer || null,
@@ -140,25 +140,25 @@ export default function PublicChangelogPage() {
   async function handleSubscribe(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!teamId || !subEmail) return;
-    setSubState("subscribing");
+    setSubState('subscribing');
     setSubError(null);
 
     try {
       const res = await fetch(`${API_URL}/api/subscribers`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ teamId, email: subEmail }),
       });
       const json = (await res.json()) as ApiResponse<unknown>;
       if (json.ok) {
-        setSubState("success");
+        setSubState('success');
       } else {
-        setSubError(json.error ?? "Failed to subscribe");
-        setSubState("error");
+        setSubError(json.error ?? 'Failed to subscribe');
+        setSubState('error');
       }
     } catch {
-      setSubError("Unable to reach the server. Please try again later.");
-      setSubState("error");
+      setSubError('Unable to reach the server. Please try again later.');
+      setSubState('error');
     }
   }
 
@@ -175,7 +175,9 @@ export default function PublicChangelogPage() {
       <main className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center max-w-md">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Changelog Not Found</h1>
-          <p className="text-gray-500">{error ?? "This changelog does not exist or is not yet published."}</p>
+          <p className="text-gray-500">
+            {error ?? 'This changelog does not exist or is not yet published.'}
+          </p>
           <a href="/" className="mt-4 inline-block text-blue-600 hover:text-blue-800 text-sm">
             ← Back to home
           </a>
@@ -190,9 +192,7 @@ export default function PublicChangelogPage() {
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <h1 className="text-3xl font-bold text-gray-900">{changelog.title}</h1>
-          {changelog.description && (
-            <p className="mt-2 text-gray-500">{changelog.description}</p>
-          )}
+          {changelog.description && <p className="mt-2 text-gray-500">{changelog.description}</p>}
         </div>
       </header>
 
@@ -206,14 +206,12 @@ export default function PublicChangelogPage() {
                   <h2 className="text-xl font-bold text-gray-900">
                     {release.title ?? `Release ${release.version}`}
                   </h2>
-                  {release.summary && (
-                    <p className="mt-1 text-gray-500">{release.summary}</p>
-                  )}
+                  {release.summary && <p className="mt-1 text-gray-500">{release.summary}</p>}
                   <p className="mt-1 text-xs text-gray-400">
-                    {new Date(release.publishedAt).toLocaleDateString("en-US", {
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
+                    {new Date(release.publishedAt).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
                     })}
                   </p>
                 </div>
@@ -241,7 +239,7 @@ export default function PublicChangelogPage() {
             <p className="text-sm text-gray-500 mb-4">
               Get notified when new changelog entries are published.
             </p>
-            {subState === "success" ? (
+            {subState === 'success' ? (
               <div className="rounded-md bg-green-50 border border-green-200 p-4">
                 <p className="text-sm font-medium text-green-800">✓ Subscribed!</p>
                 <p className="text-sm text-green-600 mt-1">
@@ -249,35 +247,42 @@ export default function PublicChangelogPage() {
                 </p>
               </div>
             ) : (
-              <form className="flex gap-2" onSubmit={(e) => { void handleSubscribe(e); }}>
+              <form
+                className="flex gap-2"
+                onSubmit={(e) => {
+                  void handleSubscribe(e);
+                }}
+              >
                 <input
                   type="email"
                   required
                   value={subEmail}
-                  onChange={(e) => { setSubEmail(e.target.value); }}
+                  onChange={(e) => {
+                    setSubEmail(e.target.value);
+                  }}
                   placeholder="you@company.com"
                   className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
                 <button
                   type="submit"
-                  disabled={subState === "subscribing"}
+                  disabled={subState === 'subscribing'}
                   className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors disabled:opacity-50"
                 >
-                  {subState === "subscribing" ? "Subscribing..." : "Subscribe"}
+                  {subState === 'subscribing' ? 'Subscribing...' : 'Subscribe'}
                 </button>
               </form>
             )}
-            {subState === "error" && subError && (
+            {subState === 'error' && subError && (
               <p className="mt-3 text-sm text-red-600">{subError}</p>
             )}
           </div>
 
           {/* "Powered by" footer */}
           <p className="mt-6 text-center text-xs text-gray-400">
-            Powered by{" "}
+            Powered by{' '}
             <a href="/" className="text-gray-500 hover:text-gray-700 underline">
               DevComms AI
-            </a>{" "}
+            </a>{' '}
             — Automated changelogs from your git history
           </p>
         </div>
@@ -296,7 +301,7 @@ function EntryList({ entries }: { entries: ChangelogEntry[] }) {
         >
           <div className="flex items-start gap-3">
             <span className="text-lg flex-shrink-0 mt-0.5">
-              {categoryIcons[entry.category] ?? "📝"}
+              {categoryIcons[entry.category] ?? '📝'}
             </span>
             <div className="flex-1 min-w-0">
               <h3 className="text-sm font-semibold text-gray-900">{entry.title}</h3>
@@ -316,10 +321,10 @@ function EntryList({ entries }: { entries: ChangelogEntry[] }) {
               )}
               {entry.publishedAt && (
                 <p className="mt-2 text-xs text-gray-400">
-                  {new Date(entry.publishedAt).toLocaleDateString("en-US", {
-                    year: "numeric",
-                    month: "short",
-                    day: "numeric",
+                  {new Date(entry.publishedAt).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
                   })}
                 </p>
               )}

@@ -49,7 +49,10 @@ const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 // Capture raw body for webhook signature verification (before JSON parser)
 app.use((req, _res, next) => {
-  if (!req.url.startsWith('/api/github/webhook') && !req.url.startsWith('/api/subscriptions/webhook')) {
+  if (
+    !req.url.startsWith('/api/github/webhook') &&
+    !req.url.startsWith('/api/subscriptions/webhook')
+  ) {
     next();
     return;
   }
@@ -83,18 +86,20 @@ app.use('/api/public', (_req, res, next) => {
 // ── Static files (widget) ─────────────────────────────────────
 
 const publicDir = path.resolve(__dirname, '..', 'public');
-app.use(express.static(publicDir, {
-  maxAge: process.env.NODE_ENV === 'production' ? '1h' : 0,
-  setHeaders(res, filePath) {
-    if (filePath.endsWith('.js')) {
-      res.header('Access-Control-Allow-Origin', '*');
-      res.header('Content-Type', 'application/javascript; charset=utf-8');
-      if (process.env.NODE_ENV === 'production') {
-        res.header('Cache-Control', 'public, max-age=3600');
+app.use(
+  express.static(publicDir, {
+    maxAge: process.env.NODE_ENV === 'production' ? '1h' : 0,
+    setHeaders(res, filePath) {
+      if (filePath.endsWith('.js')) {
+        res.header('Access-Control-Allow-Origin', '*');
+        res.header('Content-Type', 'application/javascript; charset=utf-8');
+        if (process.env.NODE_ENV === 'production') {
+          res.header('Cache-Control', 'public, max-age=3600');
+        }
       }
-    }
-  },
-}));
+    },
+  }),
+);
 
 // ── Routes ──────────────────────────────────────────────────
 
