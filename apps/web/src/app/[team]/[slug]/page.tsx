@@ -50,8 +50,12 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
 export default function PublicChangelogPage() {
   const params = useParams<{ team: string; slug: string }>();
   const [changelog, setChangelog] = useState<ChangelogData | null>(null);
+  const [teamId, setTeamId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [subEmail, setSubEmail] = useState("");
+  const [subState, setSubState] = useState<"idle" | "subscribing" | "success" | "error">("idle");
+  const [subError, setSubError] = useState<string | null>(null);
 
   useEffect(() => {
     // Fetch the changelog — for MVP, we fetch by the team+slug from the URL
@@ -69,6 +73,8 @@ export default function PublicChangelogPage() {
           setLoading(false);
           return;
         }
+
+        setTeamId(teamJson.data.id);
 
         // Find the changelog with matching slug
         const changelogsRes = await fetch(
@@ -111,6 +117,31 @@ export default function PublicChangelogPage() {
 
     fetchChangelog();
   }, [params.team, params.slug]);
+
+  async function handleSubscribe(e: React.FormEvent) {
+    e.preventDefault();
+    if (!teamId || !subEmail) return;
+    setSubState("subscribing");
+    setSubError(null);
+
+    try {
+      const res = await fetch(`${API_URL}/api/subscribers`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ teamId, email: subEmail }),
+      });
+      const json = (await res.json()) as ApiResponse<unknown>;
+      if (json.ok) {
+        setSubState("success");
+      } else {
+        setSubError(json.error ?? "Failed to subscribe");
+        setSubState("error");
+      }
+    } catch {
+      setSubError("Unable to reach the server. Please try again later.");
+      setSubState("error");
+    }
+  }
 
   if (loading) {
     return (
@@ -191,25 +222,35 @@ export default function PublicChangelogPage() {
             <p className="text-sm text-gray-500 mb-4">
               Get notified when new changelog entries are published.
             </p>
-            <form
-              className="flex gap-2"
-              onSubmit={(e) => {
-                e.preventDefault();
-                alert("Email subscription coming soon!");
-              }}
-            >
-              <input
-                type="email"
-                placeholder="you@company.com"
-                className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              <button
-                type="submit"
-                className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
-              >
-                Subscribe
-              </button>
-            </form>
+            {subState === "success" ? (
+              <div className="rounded-md bg-green-50 border border-green-200 p-4">
+                <p className="text-sm font-medium text-green-800">✓ Subscribed!</p>
+                <p className="text-sm text-green-600 mt-1">
+                  You&apos;ll receive email notifications when new entries are published.
+                </p>
+              </div>
+            ) : (
+              <form className="flex gap-2" onSubmit={handleSubscribe}>
+                <input
+                  type="email"
+                  required
+                  value={subEmail}
+                  onChange={(e) => setSubEmail(e.target.value)}
+                  placeholder="you@company.com"
+                  className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <button
+                  type="submit"
+                  disabled={subState === "subscribing"}
+                  className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors disabled:opacity-50"
+                >
+                  {subState === "subscribing" ? "Subscribing..." : "Subscribe"}
+                </button>
+              </form>
+            )}
+            {subState === "error" && subError && (
+              <p className="mt-3 text-sm text-red-600">{subError}</p>
+            )}
           </div>
 
           {/* "Powered by" footer */}
