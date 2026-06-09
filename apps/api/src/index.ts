@@ -2,6 +2,7 @@ import express from 'express';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import { APP_NAME, APP_VERSION, ApiSuccess } from '@dra/shared';
+import apiRoutes from './routes/index.js';
 
 // Sentry is optional — errors go to stdout when SENTRY_DSN is not set
 let setupExpressErrorHandler: ((app: express.Express) => void) | null = null;
@@ -65,6 +66,10 @@ app.get('/health', (_req, res) => {
     timestamp: new Date().toISOString(),
   });
 });
+
+// ── API Routes ──────────────────────────────────────────────
+
+app.use('/api', apiRoutes);
 
 // Readiness probe — verifies downstream dependencies are configured
 app.get('/health/ready', (_req, res) => {
