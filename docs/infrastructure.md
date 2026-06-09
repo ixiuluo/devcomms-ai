@@ -47,18 +47,21 @@ We can migrate to VPS when MRR justifies the ops time (~$2K MRR threshold).
 
 ### Staging
 
-- Fly.io app from `main` branch auto-deploy
-- Separate PostgreSQL/Redis instances
-- Domain: `staging.devcomms.ai`
+- Fly.io app: `devcomms-api-staging` (config: `fly.staging.toml`)
 - Auto-deployed on push to `main` via CI
+- Separate PostgreSQL database on shared cluster
+- Domain: `staging.devcomms.ai`
+- Auto-stop enabled (scales to zero when idle to save costs)
+- Environment: `NODE_ENV=staging`
 
 ### Production
 
-- Fly.io app, manual deploy trigger
+- Fly.io app: `devcomms-api` (config: `fly.toml`)
+- Manual deploy via `workflow_dispatch` with `deploy_production: true`
 - Domain: `devcomms.ai`
-- Triggered via `workflow_dispatch` with `deploy_production: true`
-- Separate PostgreSQL/Redis with Fly Postgres backups enabled
-- PagerDuty-free: AI agents monitor and respond
+- 512MB VM (up from 256MB in staging)
+- Min 1 machine running (no scale-to-zero)
+- Environment: `NODE_ENV=production`
 
 ## Monitoring & Observability
 
@@ -124,11 +127,36 @@ Developer pushes to GitHub
   ├── PR → CI (lint, typecheck, test, build)
   └── Merge to main
       ├── CI (lint, typecheck, test, build)
-      └── Deploy to Fly.io (auto)
+      └── Deploy Staging (auto, fly.staging.toml → devcomms-api-staging)
 
 Production deploy
   └── workflow_dispatch with deploy_production: true
+      └── CI (lint, typecheck, test, build) → Deploy Production (fly.toml → devcomms-api)
 ```
+
+## Provisioning
+
+First-time setup is documented in `scripts/provision-fly-resources.sh`. This script:
+
+1. Creates Fly.io apps (staging + production)
+2. Provisions Fly Postgres (shared cluster, both apps attached)
+3. Guides through Upstash Redis setup
+4. Sets secrets (SESSION_SECRET, SENTRY_DSN, STRIPE_SECRET_KEY, REDIS_URL)
+5. Configures SSL certificates for custom domains
+6. Prints DNS records to add at registrar
+7. Documents GitHub Actions secret setup
+8. Optionally deploys both environments
+
+Run: `bash scripts/provision-fly-resources.sh`
+
+### Required GitHub Secrets
+
+| Secret | Environment | Purpose |
+|--------|------------|---------|
+| `FLY_API_TOKEN_STAGING` | staging | Fly.io deploy token for staging |
+| `FLY_API_TOKEN_PRODUCTION` | production | Fly.io deploy token for production |
+
+Create tokens via `flyctl auth token` and add in GitHub repo Settings → Environments.
 
 ## Recovery Procedures
 
@@ -137,8 +165,9 @@ Production deploy
 1. Check Fly.io dashboard (`fly status`) for service status
 2. Check Sentry for error spike
 3. Check `GET /health/ready` for DB/Redis connectivity
-4. Roll back via `flyctl deploy --image <previous-image>`
-5. If Fly.io is down: check https://status.fly.io. If >30min, manually deploy Docker to Hetzner fallback.
+4. View logs: `flyctl logs --app devcomms-api`
+5. Roll back via `flyctl deploy --image <previous-image> --app devcomms-api`
+6. If Fly.io is down: check https://status.fly.io. If >30min, manually deploy Docker to Hetzner fallback.
 
 ### Database restore
 

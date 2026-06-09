@@ -1,7 +1,8 @@
 version: '3.9'
 
 # Production-like deployment for local validation.
-# In actual production, Railway manages PostgreSQL and Redis.
+# In actual production, Fly.io manages compute, Fly Postgres manages the database,
+# and Upstash manages Redis.
 # This file is for testing the production Docker image locally.
 
 services:

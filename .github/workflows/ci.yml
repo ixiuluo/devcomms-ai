@@ -5,6 +5,13 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      deploy_production:
+        description: 'Deploy to production (devcomms.ai)'
+        required: true
+        type: boolean
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -85,14 +92,31 @@ jobs:
         env:
           NEXT_TELEMETRY_DISABLED: '1'
 
-  deploy:
-    name: Deploy
+  deploy-staging:
+    name: Deploy Staging
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs: [lint, typecheck, test, build]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     concurrency:
-      group: deploy
+      group: deploy-staging
+      cancel-in-progress: false
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - run: flyctl deploy --config fly.staging.toml --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_STAGING }}
+
+  deploy-production:
+    name: Deploy Production
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_production == 'true'
+    needs: [lint, typecheck, test, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: deploy-production
       cancel-in-progress: false
     environment: production
     steps:
@@ -100,4 +124,4 @@ jobs:
       - uses: superfly/flyctl-actions/setup-flyctl@master
       - run: flyctl deploy --config fly.toml --remote-only
         env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_PRODUCTION }}
