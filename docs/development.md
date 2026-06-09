@@ -1,7 +1,6 @@
 # Development Guide
 
-This document describes how to set up and work with the DRA development environment.
-It is written for both human engineers and AI agents.
+This document describes how to set up and work with the DevComms AI development environment.
 
 ## Prerequisites
 
@@ -15,7 +14,7 @@ It is written for both human engineers and AI agents.
 ```bash
 # Clone the repository
 git clone <repo-url>
-cd dra
+cd devcomms-ai
 
 # Install all dependencies
 npm install
@@ -129,15 +128,15 @@ We use native npm workspaces rather than Turborepo or Nx. At our scale (small te
 ### Express over Next.js/Fastify
 
 Express is chosen as the initial API framework because:
-- Most engineers and AI agents are familiar with it
+- Most engineers are familiar with it
 - Massive ecosystem and middleware
 - Simple mental model — fewer abstractions to debug at 3 AM
 
-A frontend framework (Next.js, Vite + React, etc.) will be added once the product scope is defined in DRA-4.
+Next.js frontend has been added under `apps/web`.
 
 ### TypeScript Strict Mode
 
-All strict checks are enabled from day one. This catches bugs early and provides better IDE support for AI agents operating on the codebase.
+All strict checks are enabled from day one. This catches bugs early and provides better IDE support with autocompletion and type checking.
 
 ### ESLint Flat Config
 
@@ -164,16 +163,6 @@ mkdir -p packages/my-package/src
 npm install
 npm run build -w packages/my-package
 ```
-
-## AI Agent Collaboration
-
-This codebase is designed for AI agents to operate on it:
-
-1. **Structured configs**: All tooling is configured via explicit JSON/JS files, not magic defaults
-2. **Clear workspace boundaries**: Each package has a clear purpose and entry point
-3. **Typed interfaces**: TypeScript strict mode ensures agents get immediate feedback on type errors
-4. **Documented patterns**: This file serves as the source of truth for how the project works
-5. **CI-enforced quality**: Agents can rely on CI to catch issues; the feedback loop is fast
 
 ## Troubleshooting
 

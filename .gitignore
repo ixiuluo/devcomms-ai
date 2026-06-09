@@ -51,9 +51,6 @@ coverage/
 tmp/
 temp/
 
-# Paperclip
-.claude/
-
 # Generated Prisma client
 /generated/prisma
 apps/api/src/generated/prisma

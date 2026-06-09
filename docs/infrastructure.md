@@ -1,6 +1,6 @@
 # Infrastructure & Deployment
 
-DRA infrastructure decisions for DevComms AI. This document is the source of truth for how we deploy, monitor, and operate the product. Written for AI agents to recover the system from.
+Infrastructure decisions for DevComms AI. This document is the source of truth for how we deploy, monitor, and operate the product.
 
 ## Deployment Target Decision
 
@@ -39,7 +39,7 @@ A Hetzner VPS at €5/mo is cheaper raw compute, but:
 - PostgreSQL and Redis need manual setup, backups, and monitoring
 - GitHub webhook delivery needs TLS termination (certbot, nginx config)
 - Zero-downtime deploys need custom scripting
-- This is operational overhead an OPC doesn't need in month 1
+- This is operational overhead a small team doesn't need in month 1
 
 We can migrate to VPS when MRR justifies the ops time (~$2K MRR threshold).
 
@@ -82,7 +82,7 @@ We can migrate to VPS when MRR justifies the ops time (~$2K MRR threshold).
 
 - **UptimeRobot** (free, 50 monitors, 5-min intervals)
 - Monitors: `GET /health` on both staging and production
-- Alerts: email to CTO
+- Alerts: email
 
 ### Logging
 
@@ -109,15 +109,14 @@ We can migrate to VPS when MRR justifies the ops time (~$2K MRR threshold).
 
 | Alert | Threshold | Action |
 |-------|-----------|--------|
-| Fly.io spend | > $20/mo | CTO reviews usage |
-| Fly.io spend | > $50/mo | CEO approval required |
-| API errors (Sentry) | > 50/hour | CTO investigates |
+| Fly.io spend | > $20/mo | Review usage |
+| Fly.io spend | > $50/mo | Team review required |
+| API errors (Sentry) | > 50/hour | Investigate |
 | Uptime | < 99.5% (7d) | Post-mortem |
 
 ### Tracking
 
 - Fly.io dashboard shows real-time spend
-- Monthly cost review in `docs/cost-tracking.md`
 - Budget: $30/mo hard cap for MVP phase
 
 ## Deployment Flow
@@ -173,7 +172,7 @@ Create tokens via `flyctl auth token` and add in GitHub repo Settings → Enviro
 
 1. Fly Postgres → `flyctl postgres restore` or point-in-time recovery
 2. Verify with `GET /health/ready`
-3. Notify CEO if data loss > 1 hour
+3. Notify team if data loss > 1 hour
 
 ### Secrets compromised
 
