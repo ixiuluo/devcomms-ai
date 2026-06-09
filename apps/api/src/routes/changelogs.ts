@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { prisma } from "../db.js";
+import { notifyPublishedEntries } from "../services/notifications.js";
 
 const router = Router();
 
@@ -87,6 +88,12 @@ router.post("/:id/publish", async (req, res) => {
       data: { published: true },
       include: { entries: { where: { published: true } } },
     });
+
+    // Fire-and-forget notifications (don't block the response)
+    notifyPublishedEntries(req.params.id).catch((err) =>
+      console.error("notifyPublishedEntries error:", (err as Error).message),
+    );
+
     res.json({ ok: true, data: changelog });
   } catch (err) {
     console.error("POST /changelogs/:id/publish error:", (err as Error).message);
