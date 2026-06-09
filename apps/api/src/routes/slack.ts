@@ -19,13 +19,7 @@ router.post("/", async (req, res) => {
       return;
     }
 
-    const integration = await prisma.slackIntegration.upsert({
-      where: { id: webhookUrl }, // not a real unique — use findFirst+upsert
-      create: { teamId, webhookUrl, channel },
-      update: {},
-    });
-
-    // Use update directly since we know teamId+webhookUrl should be unique
+    // Use findFirst + create/update since teamId+webhookUrl should be unique
     const existing = await prisma.slackIntegration.findFirst({
       where: { teamId, webhookUrl },
     });
