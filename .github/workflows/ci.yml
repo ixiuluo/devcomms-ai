@@ -29,6 +29,7 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm ci
+      - run: npm run db:generate -w apps/api
       - run: npx eslint .
       - run: npx prettier --check .
 
