@@ -120,20 +120,20 @@ export default function DashboardPage() {
         `GitHub connected successfully! ${repoCount ? `${repoCount} repos imported.` : ""}`,
       );
       window.history.replaceState({}, "", "/dashboard");
-      fetchTeamData(teamSlug);
+      void fetchTeamData(teamSlug);
       return;
     }
 
-    fetchInitialData();
+    void fetchInitialData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Re-fetch entries when changelog or tab changes
   useEffect(() => {
     if (activeTab === "analytics") {
-      fetchAnalytics();
+      void fetchAnalytics();
     } else if (selectedChangelog) {
-      fetchEntries(selectedChangelog);
+      void fetchEntries(selectedChangelog);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedChangelog, activeTab]);
@@ -311,7 +311,7 @@ export default function DashboardPage() {
           </div>
           <button
             className="text-sm text-green-700 hover:text-green-900 underline flex-shrink-0"
-            onClick={() => setGithubSuccess(null)}
+            onClick={() => { setGithubSuccess(null); }}
           >
             Dismiss
           </button>
