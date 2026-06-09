@@ -32,6 +32,9 @@ pnpm-debug.log*
 *.swo
 *~
 
+# Database
+*.db
+
 # OS
 .DS_Store
 Thumbs.db
