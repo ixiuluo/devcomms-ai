@@ -31,25 +31,31 @@ function getWebhookSecret(): string | null {
 /**
  * GET /github/login
  * Redirect user to GitHub OAuth authorization page.
+ * Accepts optional ?return_url=... to redirect back after auth completes.
  */
-router.get("/login", (_req, res) => {
+router.get("/login", (req, res) => {
   const config = getGitHubConfig();
   if (!config) {
-    res.status(503).json({
-      ok: false,
-      error: "GitHub App is not configured — set GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET",
-    });
+    const returnUrl = (req.query.return_url as string) ?? "/dashboard";
+    const errorUrl = new URL(returnUrl, "http://localhost");
+    errorUrl.searchParams.set("github_error", "github_not_configured");
+    res.redirect(errorUrl.pathname + errorUrl.search);
     return;
   }
 
   const hostUrl = process.env.HOST_URL ?? "http://localhost:3000";
   const redirectUri = `${hostUrl}/api/github/callback`;
+  const returnUrl = (req.query.return_url as string) ?? "/dashboard";
+
+  // Encode return_url into state alongside the CSRF nonce
+  const nonce = crypto.randomUUID();
+  const state = Buffer.from(JSON.stringify({ nonce, returnUrl })).toString("base64url");
 
   const url = new URL("https://github.com/login/oauth/authorize");
   url.searchParams.set("client_id", config.clientId);
   url.searchParams.set("redirect_uri", redirectUri);
   url.searchParams.set("scope", "repo,user:email");
-  url.searchParams.set("state", crypto.randomUUID());
+  url.searchParams.set("state", state);
 
   res.redirect(url.toString());
 });
@@ -57,6 +63,7 @@ router.get("/login", (_req, res) => {
 /**
  * GET /github/callback
  * Exchange authorization code for access token, fetch repos, store them.
+ * Redirects back to the frontend with team info on success, or error on failure.
  */
 router.get("/callback", async (req, res) => {
   const config = getGitHubConfig();
@@ -65,10 +72,30 @@ router.get("/callback", async (req, res) => {
     return;
   }
 
-  const { code } = req.query as { code?: string; state?: string };
+  const { code, state } = req.query as { code?: string; state?: string };
+
+  // Decode return_url from state parameter (encoded as base64url JSON in /login)
+  let returnUrl = "/dashboard";
+  if (state) {
+    try {
+      const decoded = JSON.parse(
+        Buffer.from(state, "base64url").toString("utf8"),
+      ) as { nonce: string; returnUrl: string };
+      if (decoded.returnUrl) returnUrl = decoded.returnUrl;
+    } catch {
+      // state might be a plain UUID from older login flows — ignore
+    }
+  }
+
+  // Helper: redirect back to frontend with error
+  function redirectError(message: string) {
+    const errorUrl = new URL(returnUrl, "http://localhost");
+    errorUrl.searchParams.set("github_error", message);
+    res.redirect(errorUrl.pathname + errorUrl.search);
+  }
 
   if (!code) {
-    res.status(400).json({ ok: false, error: "Missing authorization code" });
+    redirectError("missing_code");
     return;
   }
 
@@ -96,10 +123,7 @@ router.get("/callback", async (req, res) => {
     };
 
     if (!tokenData.access_token) {
-      res.status(400).json({
-        ok: false,
-        error: tokenData.error ?? "Failed to exchange code",
-      });
+      redirectError(tokenData.error ?? "token_exchange_failed");
       return;
     }
 
@@ -143,11 +167,11 @@ router.get("/callback", async (req, res) => {
     });
 
     // Store repos
-    const storedRepos = [];
+    let storedCount = 0;
     for (const repo of repos) {
       if (repo.fork) continue; // skip forks
 
-      const stored = await prisma.gitHubRepo.upsert({
+      await prisma.gitHubRepo.upsert({
         where: { fullName: repo.full_name },
         create: {
           teamId: team.id,
@@ -163,7 +187,7 @@ router.get("/callback", async (req, res) => {
           defaultBranch: repo.default_branch,
         },
       });
-      storedRepos.push(stored);
+      storedCount++;
     }
 
     // Create a default changelog for this team if none exists
@@ -182,17 +206,15 @@ router.get("/callback", async (req, res) => {
       });
     }
 
-    res.json({
-      ok: true,
-      data: {
-        user: { login: user.login, name: user.name, avatar_url: user.avatar_url },
-        team,
-        repos: storedRepos.length,
-      },
-    });
+    // Redirect back to frontend dashboard with team info
+    const successUrl = new URL(returnUrl, "http://localhost");
+    successUrl.searchParams.set("github_connected", "true");
+    successUrl.searchParams.set("team", team.slug);
+    successUrl.searchParams.set("repos", String(storedCount));
+    res.redirect(successUrl.pathname + successUrl.search);
   } catch (err) {
     console.error("GitHub OAuth callback error:", (err as Error).message);
-    res.status(500).json({ ok: false, error: "GitHub OAuth failed" });
+    redirectError("oauth_failed");
   }
 });
 
